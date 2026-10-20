@@ -21,7 +21,7 @@
 ## Notes-zhTW: 尋找適合目前職業與等級的最佳裝備及取得來源（地城、專業製作、任務）。輸出/坦克/治療並排對比。(/ezbg, /bestgear)
 ## Author: qqhrqqhr2
 ## Version: 2.0.0
-## Category: Inventory
+## Category: EzWoW
 ## IconTexture: Interface\AddOns\EzWoW-BestGearFinder\Media\icon
 ## X-Curse-Project-ID: 1728236
 ## X-License: GPL-3.0
