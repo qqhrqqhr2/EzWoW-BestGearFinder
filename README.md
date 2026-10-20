@@ -194,3 +194,13 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 - Scores are **estimates** from per-class/role stat weights. Use your own judgement for the final call.
 - Item data can take a moment to load from the game. If the status line says it is loading, wait a little.
 - Right-click map search needs `EzWoW-MapFinder` to be installed.
+
+---
+
+## Support / 후원
+
+If you find this addon useful, you can support its development.
+
+애드온이 도움이 되셨다면 개발 후원으로 응원해 주세요.
+
+[Buy Me a Coffee ☕](https://buymeacoffee.com/qqhrqqhr2)
