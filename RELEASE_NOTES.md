@@ -1,9 +1,3 @@
-# v2.0.1
+# v2.0.2
 
-## English
-
-- All EzWoW addons are now grouped under a single "EzWoW" category in the in-game addon list.
-
-## 한국어
-
-- 게임 내 애드온 목록에서 모든 EzWoW 애드온이 "EzWoW" 카테고리 하나로 묶여 표시됩니다.
+[2026-10-20 23:54] 최신 DB 적용 (Apply latest DB)
