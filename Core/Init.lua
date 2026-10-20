@@ -436,7 +436,7 @@ function GearScoringEngine.indexBody()
     end
 
     local categoryColors = dungeonCatalog and dungeonCatalog.crafting
-    if savedDB.crafting and type(categoryColors) == "table" then
+    if type(categoryColors) == "table" then  -- always indexed; resolveSrcAllowed filters by savedDB.crafting
         for itemID, sources in pairs(categoryColors) do
             local rec = entryIndex[itemID]
             if rec == nil then
