@@ -1,0 +1,50 @@
+## Interface: 16001
+## Title: EzWoW - Best Gear Finder
+## Title-enUS: EzWoW - Best Gear Finder
+## Title-koKR: EzWoW - Best Gear Finder
+## Title-deDE: EzWoW - Best Gear Finder
+## Title-frFR: EzWoW - Best Gear Finder
+## Title-esES: EzWoW - Best Gear Finder
+## Title-esMX: EzWoW - Best Gear Finder
+## Title-ruRU: EzWoW - Best Gear Finder
+## Title-zhCN: EzWoW - Best Gear Finder
+## Title-zhTW: EzWoW - Best Gear Finder
+## Notes: Finds the best gear you can wear right now for your class and level - and exactly where it drops, who crafts it, or which quest gives it. DPS / Tank / Heal side by side. For WoW Forever. (/ezbg, /bestgear)
+## Notes-enUS: Finds the best gear you can wear right now for your class and level - and exactly where it drops, who crafts it, or which quest gives it. DPS / Tank / Heal side by side. For WoW Forever. (/ezbg, /bestgear)
+## Notes-koKR: 내 직업과 레벨에서 지금 입을 수 있는 최고의 장비를 찾고, 어디서 나오는지(던전·제작·퀘스트)까지 알려줍니다. 딜/탱/힐을 나란히 비교. WoW Forever용. (/ezbg, /bestgear, /내템)
+## Notes-deDE: Findet die beste Ausrüstung für deine Klasse und Stufe samt Fundort (Dungeon, Handwerk, Quest). DPS / Tank / Heiler nebeneinander. (/ezbg, /bestgear)
+## Notes-frFR: Trouve le meilleur équipement pour votre classe et niveau avec sa source (donjon, métier, quête). DPS / Tank / Soins côte à côte. (/ezbg, /bestgear)
+## Notes-esES: Encuentra el mejor equipo para tu clase y nivel y dónde conseguirlo (mazmorra, profesión, misión). DPS / Tanque / Sanación lado a lado. (/ezbg, /bestgear)
+## Notes-esMX: Encuentra el mejor equipo para tu clase y nivel y dónde conseguirlo (mazmorra, profesión, misión). DPS / Tanque / Sanación lado a lado. (/ezbg, /bestgear)
+## Notes-ruRU: Находит лучшую экипировку для вашего класса и уровня и указывает источник (подземелье, профессия, задание). Боец / Танк / Лекарь рядом. (/ezbg, /bestgear)
+## Notes-zhCN: 查找适合当前职业与等级的最佳装备及获取来源（地下城、专业制作、任务）。输出/坦克/治疗并排对比。(/ezbg, /bestgear)
+## Notes-zhTW: 尋找適合目前職業與等級的最佳裝備及取得來源（地城、專業製作、任務）。輸出/坦克/治療並排對比。(/ezbg, /bestgear)
+## Author: qqhrqqhr2
+## Version: 1.0.0
+## Category: Inventory
+## IconTexture: Interface\AddOns\EzWoW-BestGearFinder\Media\icon
+## X-Curse-Project-ID: 1728236
+## X-License: GPL-3.0
+## X-Website: https://buymeacoffee.com/qqhrqqhr2
+## X-Donate: https://buymeacoffee.com/qqhrqqhr2
+## SavedVariables: EzWoW_BestGearFinderDB
+
+Core\Locales.lua
+Core\UIKit.lua
+Data\Rules.lua
+Data\GearDatabase.lua
+Data\QuestData.lua
+Data\CraftData.lua
+Data\ForeverExtra.lua
+Data\DungeonData.lua
+Data\WorldData.lua
+Data\ItemSources.lua
+Data\BiSData.lua
+Data\NamesKO.lua
+Core\Init.lua
+Modules\LiveLearner.lua
+Modules\TooltipHook.lua
+UI\MainWindow.lua
+UI\SearchWindow.lua
+UI\OptionsWindow.lua
+UI\Launcher.lua
