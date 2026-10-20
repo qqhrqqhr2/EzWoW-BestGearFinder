@@ -1,5 +1,10 @@
 # EzWoW - Best Gear Finder (`EzWoW-BestGearFinder`)
 
+## CurseForge
+
+- **Project ID / 프로젝트 ID:** `1728236`
+- **Project page / 프로젝트 페이지:** [EzWoW-BestGearFinder](https://www.curseforge.com/wow/addons/bestgearfinder)
+
 **[한국어](#한국어) · [English](#english)**
 
 WoW Forever (`Interface: 16001`) · `/ezbg`
