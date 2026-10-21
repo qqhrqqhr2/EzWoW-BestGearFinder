@@ -1,3 +1,3 @@
-# v2.0.4
+# v2.0.5
 
-- 독일어·프랑스어·스페인어·러시아어·중국어(간체·번체)에서 영어로 나오던 화면 문구 189개를 번역했습니다. (Translate 189 interface strings that still showed English in DE/FR/ES/RU/zhCN/zhTW.)
+- 언어 선택을 상자를 누르고 목록에서 고르는 방식으로 바꿨습니다. 누를 때마다 다음 언어로 넘어가지 않습니다. (Pick the language from a drop-down list instead of cycling through languages.)
