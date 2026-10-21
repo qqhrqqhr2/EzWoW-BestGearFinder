@@ -163,23 +163,21 @@ function SettingsDialog.buildConfigWindow()
 
     createSectionDivider(-70, L["조건"])
     local langOpts = ns.LANGUAGE_OPTIONS or { { nil, "Auto" }, { "koKR", "한국어" }, { "enUS", "English" } }
-    local langBtn = createStyledButton(250, -66, 190, 20, "", false, function(_, button)
-        local currentState = ns.db.lang
-        local entryIndex = 1
-        for index, optionRef in ipairs(langOpts) do
-            if optionRef[1] == currentState then entryIndex = index; break end
-        end
-        if button == "RightButton" then
-            entryIndex = entryIndex - 1; if entryIndex < 1 then entryIndex = #langOpts end
-        else
-            entryIndex = entryIndex + 1; if entryIndex > #langOpts then entryIndex = 1 end
-        end
-        ns.db.lang = langOpts[entryIndex][1]
-        if ns.SetLang then ns.SetLang(ns.db.lang) end
-        if ns.RelabelData then ns.RelabelData() end
-        ns:RebuildMainGearWindow()
-    end)
-    langBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    local langBtn = createStyledButton(250, -66, 190, 20, "", false, nil)
+    local langItems = {}
+    for index, optionRef in ipairs(langOpts) do langItems[index] = { value = optionRef[1], text = optionRef[2] } end
+    -- click the box, then pick a language from the list
+    ns.LanguageDropdown.Attach(langBtn, {
+        items = langItems,
+        colors = { bg = Theme.bg, border = Theme.border, accent = Theme.accent, text = Theme.text },
+        get = function() return ns.db.lang end,
+        set = function(code)
+            ns.db.lang = code
+            if ns.SetLang then ns.SetLang(ns.db.lang) end
+            if ns.RelabelData then ns.RelabelData() end
+            ns:RebuildMainGearWindow()
+        end,
+    })
 
     createStyledCheckbox(18, -94, 180, L["업그레이드만"], "upgradeOnly", L["현재 착용 장비보다 점수가 높은 것만 보여줍니다."])
     createStyledCheckbox(232, -94, 180, L["출처가 확인된 것만"], "sourcedOnly", L["던전·제작·퀘스트 등 획득처가 확인된 아이템만 보여줍니다. 출처를 알 수 없는 신규 아이템과 저확률 월드 드랍은 제외됩니다."])

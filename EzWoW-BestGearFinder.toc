@@ -46,5 +46,6 @@ Modules\LiveLearner.lua
 Modules\TooltipHook.lua
 UI\MainWindow.lua
 UI\SearchWindow.lua
+UI\LanguageDropdown.lua
 UI\OptionsWindow.lua
 UI\Launcher.lua

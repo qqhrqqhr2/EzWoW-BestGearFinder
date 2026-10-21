@@ -54,7 +54,7 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 
 | 번호 | 항목 | 설명 | 기본값 |
 |---|---|---|---|
-| ① | 언어 | 좌클릭/우클릭으로 앞뒤로 순환합니다. | 자동 |
+| ① | 언어 | 상자를 누르고 목록에서 언어를 고릅니다. | 자동 |
 | ① | 업그레이드만 | 지금 장비보다 점수가 높은 것만 표시 | 켬 |
 | ① | 출처가 확인된 것만 | 획득처 정보가 있는 아이템만 | 끔 |
 | ① | 다른 직업 전용 숨김 | 다른 직업 전용 아이템 제외 | 켬 |
@@ -147,7 +147,7 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 
 | No. | Option | Description | Default |
 |---|---|---|---|
-| ① | Language | Left/right click cycles forwards/backwards. | Auto |
+| ① | Language | Click the box and pick a language from the list. | Auto |
 | ① | Upgrades only | Only items scoring higher than what you wear | On |
 | ① | Known sources only | Only items with a known source | Off |
 | ① | Hide other-class items | Drop class-restricted items for other classes | On |
