@@ -112,6 +112,7 @@ function SettingsDialog.buildConfigWindow()
         formatLocalizedLabel:SetPoint("CENTER")
         formatLocalizedLabel:SetTextColor(unpack(isAccent and Theme.accent or Theme.text))
         formatLocalizedLabel:SetText(text or "")
+        ns.UIKit:FitFontString(formatLocalizedLabel, w - 8, 1)
         buttonWidget.label = formatLocalizedLabel
         buttonWidget:SetScript("OnEnter", function()
             if buttonWidget.SetBackdropColor then
@@ -155,6 +156,7 @@ function SettingsDialog.buildConfigWindow()
         displayText:SetJustifyH("LEFT")
         displayText:SetTextColor(unpack(Theme.text))
         displayText:SetText(text)
+        ns.UIKit:FitFontString(displayText, w or 180, 2)
         cfgChecks[#cfgChecks + 1] = themeColor
         return themeColor
     end
@@ -192,6 +194,7 @@ function SettingsDialog.buildConfigWindow()
     perLbl:SetPoint("TOPLEFT", 20, -202)
     perLbl:SetTextColor(unpack(Theme.muted))
     perLbl:SetText(L["슬롯당 표시 개수"])
+    ns.UIKit:FitFontString(perLbl, 116, 1)
     local perMinus = createStyledButton(140, -198, 22, 20, "-", false, function()
         ns.db.perSlot = math.max(2, (ns.db.perSlot or 2) - 1)
         ns:Refresh(true)
@@ -234,6 +237,7 @@ function SettingsDialog.buildConfigWindow()
         local qtVal = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         qtVal:SetPoint("LEFT", checkWidget, "RIGHT", 4, 0)
         qtVal:SetText(priorityQueue[3] .. priorityQueue[2] .. "|r")
+        ns.UIKit:FitFontString(qtVal, 108, 1)
         qualChecks[index] = checkWidget
     end
 
@@ -248,6 +252,7 @@ function SettingsDialog.buildConfigWindow()
     alphaLbl:SetPoint("TOPLEFT", 20, -436)
     alphaLbl:SetTextColor(unpack(Theme.muted))
     alphaLbl:SetText(L["투명도"])
+    ns.UIKit:FitFontString(alphaLbl, 96, 1)
     local alphaMinus = createStyledButton(120, -432, 24, 20, "-", false, function()
         ns.db.mainAlpha = math.max(0.3, math.floor(((ns.db.mainAlpha or 0.92) - 0.05) * 20 + 0.5) / 20)
         if ns.ApplyMainAlpha then ns.ApplyMainAlpha(ns.db.mainAlpha) end
@@ -270,6 +275,7 @@ function SettingsDialog.buildConfigWindow()
     chanceLbl:SetJustifyH("LEFT")
     chanceLbl:SetTextColor(unpack(Theme.muted))
     chanceLbl:SetText(L["월드 드랍 (저확률)"])
+    ns.UIKit:FitFontString(chanceLbl, 112, 2)
     local chanceMinus = createStyledButton(354, -432, 22, 20, "-", false, function()
         ns.db.minChance = math.max(0, math.floor(((ns.db.minChance or 1) - 0.5) * 2 + 0.5) / 2)
         ns:Refresh(true)
@@ -319,6 +325,7 @@ function SettingsDialog.buildConfigWindow()
             if optionRef[1] == ns.db.lang then langLabel = optionRef[2]; break end
         end
         langBtn.label:SetText(L["언어"] .. ": " .. langLabel .. " ▼")
+        ns.UIKit:FitFontString(langBtn.label, 182, 1)
     end
 
     windowFrame.RefreshCfg = syncCfg

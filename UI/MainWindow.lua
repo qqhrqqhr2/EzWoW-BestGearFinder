@@ -89,8 +89,13 @@ function ns.CreateStyledButton(parent, w, h, text, isAccent, onClick)
         formatLocalizedLabel:SetTextColor(0.929, 0.957, 0.969, 1.00)
     end
     formatLocalizedLabel:SetText(text or "")
+    ns.UIKit:FitFontString(formatLocalizedLabel, w - 8, 1)
     buttonWidget.label = formatLocalizedLabel
-    function buttonWidget:SetText(txt) formatLocalizedLabel:SetText(txt or "") end
+    -- Re-fit on every relabel so long translations stay inside the button.
+    function buttonWidget:SetText(txt)
+        formatLocalizedLabel:SetText(txt or "")
+        ns.UIKit:FitFontString(formatLocalizedLabel, self:GetWidth() - 8, 1)
+    end
     function buttonWidget:GetText() return formatLocalizedLabel:GetText() end
     function buttonWidget:GetFontString() return formatLocalizedLabel end
     buttonWidget:HookScript("OnEnter", function()
@@ -369,6 +374,7 @@ function MainGearAdvisorWindow.assembleFrame()
         local resolvedValue = checkWidget:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         resolvedValue:SetPoint("LEFT", checkWidget, "RIGHT", 2, 0)
         resolvedValue:SetText(L[stateEntry.label])
+        ns.UIKit:FitFontString(resolvedValue, 160, 1)
         checkWidget:SetChecked(ns.db.sortStats and ns.db.sortStats[stateEntry.key] and true or false)
         checkWidget:SetScript("OnClick", function(self)
             ns.db.sortStats = ns.db.sortStats or {}
@@ -420,6 +426,7 @@ function MainGearAdvisorWindow.assembleFrame()
         local resolvedValue = buttonWidget:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         resolvedValue:SetPoint("CENTER")
         resolvedValue:SetText(optionRef[2])
+        ns.UIKit:FitFontString(resolvedValue, 102, 1)
         buttonWidget:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         buttonWidget:SetScript("OnClick", function()
             classMenu:Hide()

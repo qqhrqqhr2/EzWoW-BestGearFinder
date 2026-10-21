@@ -559,6 +559,7 @@ function CatalogSearchWindow.constructMainFrame()
     nrl:SetJustifyH("LEFT")
     if nrl.SetWordWrap then nrl:SetWordWrap(false) end
     nrl:SetText(L["레벨 제한 없음 포함"])
+    ns.UIKit:FitFontString(nrl, 185, 1)
     noReqChk:SetChecked(filter.noReq)
     noReqChk:SetScript("OnClick", function(self) filter.noReq = self:GetChecked() and true or false; CatalogSearchWindow.startSearch() end)
 
@@ -579,6 +580,7 @@ function CatalogSearchWindow.constructMainFrame()
             checkWidget.label:SetJustifyH("LEFT")
             if checkWidget.label.SetWordWrap then checkWidget.label:SetWordWrap(false) end
             checkWidget.label:SetText(recordEntry.label)
+            ns.UIKit:FitFontString(checkWidget.label, CELL - 26, 1)
             checkWidget:SetChecked(set[recordEntry.key] and true or false)
             checkWidget:SetScript("OnClick", function(self) set[recordEntry.key] = self:GetChecked() and true or nil; CatalogSearchWindow.startSearch() end)
             verifyLists[#verifyLists + 1] = { cb = checkWidget, set = set, key = recordEntry.key }
