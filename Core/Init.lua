@@ -133,13 +133,15 @@ end
 -- Maybe Yield
 -----------------------------------------------------------------------------
 
+-- Background indexing gets about 5 ms per frame.
+local FRAME_BUDGET_MS = 5
 local budgetStart = 0
 local yieldSteps = 0
 function GearScoringEngine.maybeYield()
     yieldSteps = yieldSteps + 1
     if yieldSteps >= 250 then
         yieldSteps = 0
-        if debugprofilestop() - budgetStart > 12 then coroutine.yield() end
+        if debugprofilestop() - budgetStart > FRAME_BUDGET_MS then coroutine.yield() end
     end
 end
 
@@ -1497,7 +1499,9 @@ local elapsedAcc = 0
 local baseNotified = false
 PulseAnimationDriver:SetScript("OnUpdate", function(_, dt)
     
-    if indexCo and ns.indexState == "running" then
+    -- indexing pauses during combat and continues afterwards
+    local inCombat = InCombatLockdown and InCombatLockdown()
+    if indexCo and ns.indexState == "running" and not inCombat then
         budgetStart = debugprofilestop()
         local isCallOk, errorObj = coroutine.resume(indexCo)
         if not isCallOk then
@@ -1532,6 +1536,7 @@ PulseAnimationDriver:SetScript("OnUpdate", function(_, dt)
     
     elapsedAcc = elapsedAcc + dt
     local activeLoad = ns.fastLoad or (ns.frame and ns.frame:IsShown() and (ns.stats.pending or 0) > 0)
+    if inCombat and not activeLoad then elapsedAcc = 0 end
     if elapsedAcc >= (activeLoad and 0.025 or 0.05) then
         elapsedAcc = 0
         local limit = activeLoad and 80 or 40
@@ -1574,9 +1579,10 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2)
     elseif event == "PLAYER_LOGIN" then
         if ns.UpdateLauncher then pcall(ns.UpdateLauncher, ns) end
         if ns.RegisterOptionsPanel then pcall(ns.RegisterOptionsPanel, ns) end
+        -- the index is built when it is needed: by the tooltip option (Modules/TooltipHook.lua)
+        -- or when the window opens
         C_Timer.After(0.5, function()
             if ns.UpdateLauncher then pcall(ns.UpdateLauncher, ns) end
-            if ns.indexState == "idle" then ns:EnsureIndex() end
         end)
     elseif event == "GET_ITEM_INFO_RECEIVED" then
         if arg2 == true then

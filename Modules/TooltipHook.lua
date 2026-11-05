@@ -53,10 +53,21 @@ function ns:AddEstimateLines(tt, entityID)
     return true
 end
 
+-- Only the game's visible item tooltips get lines; hidden scan tooltips (this addon's
+-- or any other addon's) are never touched.
+local ALLOWED_TOOLTIPS = { "GameTooltip", "ItemRefTooltip", "ShoppingTooltip1", "ShoppingTooltip2",
+    "ItemRefShoppingTooltip1", "ItemRefShoppingTooltip2" }
+function TooltipUpgradeAdvisor.isAllowedTooltip(tt)
+    if type(tt) ~= "table" then return false end
+    for _, name in ipairs(ALLOWED_TOOLTIPS) do
+        if _G[name] == tt then return true end
+    end
+    return false
+end
+
 function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
     if not ns.db or ns.db.itemTooltip == false then return end
-    -- never decorate the addon's own hidden scan tooltip (Core/Init.lua hasClassAllowed)
-    if tt and tt.GetName and tt:GetName() == "EzWoWBestGearFinderScanTip" then return end
+    if not TooltipUpgradeAdvisor.isAllowedTooltip(tt) then return end
 
     if tt == GameTooltip then
         if ns.tipSuppressed then return end
@@ -164,6 +175,7 @@ end
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
+        if not TooltipUpgradeAdvisor.isAllowedTooltip(tt) then return end
         ns.tipCalls = (ns.tipCalls or 0) + 1
         
         if tt and tt.AddLine then TooltipUpgradeAdvisor.handleTooltipItemDisplayed(tt, data) end
