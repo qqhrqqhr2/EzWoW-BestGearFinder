@@ -448,11 +448,55 @@ function ns.HandleItemInfoReceived(entityID, success)
 end
 
 -----------------------------------------------------------------------------
+-- Window size (resize grip; saved in ns.db.searchSize, cleared by the position reset)
+-----------------------------------------------------------------------------
+local SIZE_MIN_W, SIZE_MIN_H, SIZE_MAX_W, SIZE_MAX_H = widgetHelper, 440, 1600, 1200
+function CatalogSearchWindow.savedSize()
+    local size = ns.db and ns.db.searchSize
+    local w = type(size) == "table" and tonumber(size[1]) or widgetHelper
+    local h = type(size) == "table" and tonumber(size[2]) or headerFrameRef
+    return math.max(SIZE_MIN_W, math.min(SIZE_MAX_W, w)), math.max(SIZE_MIN_H, math.min(SIZE_MAX_H, h))
+end
+
+function CatalogSearchWindow.attachResizeGrip()
+    local resizable = pcall(function()
+        windowFrame:SetResizable(true)
+        if windowFrame.SetResizeBounds then windowFrame:SetResizeBounds(SIZE_MIN_W, SIZE_MIN_H, SIZE_MAX_W, SIZE_MAX_H)
+        elseif windowFrame.SetMinResize then windowFrame:SetMinResize(SIZE_MIN_W, SIZE_MIN_H) windowFrame:SetMaxResize(SIZE_MAX_W, SIZE_MAX_H) end
+    end)
+    if not resizable then return end   -- no resizing on this client: the window keeps its fixed size
+    local grip = CreateFrame("Button", nil, windowFrame)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -8, 8)
+    grip:SetFrameLevel(windowFrame:GetFrameLevel() + 10)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then windowFrame:StartSizing("BOTTOMRIGHT") end
+    end)
+    grip:SetScript("OnMouseUp", function()
+        windowFrame:StopMovingOrSizing()
+        if not ns.db then return end
+        ns.db.searchSize = { math.floor(windowFrame:GetWidth() + 0.5), math.floor(windowFrame:GetHeight() + 0.5) }
+        -- sizing can re-anchor the frame, so keep the saved position in step with it
+        local point, _, relPoint, ox, oy = windowFrame:GetPoint()
+        if point then ns.db.searchPoint = { point, relPoint, ox, oy } end
+    end)
+    grip:SetScript("OnEnter", function(g)
+        GameTooltip:SetOwner(g, "ANCHOR_LEFT")
+        GameTooltip:AddLine(L["드래그해서 창 크기를 조절합니다."], 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-----------------------------------------------------------------------------
 -- Construct Main Frame
 -----------------------------------------------------------------------------
 function CatalogSearchWindow.constructMainFrame()
     windowFrame = CreateFrame("Frame", "EzWoWBestGearFinderSearchFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    windowFrame:SetSize(widgetHelper, headerFrameRef)
+    windowFrame:SetSize(CatalogSearchWindow.savedSize())
     local savedPoint = ns.db and ns.db.searchPoint
     if not (type(savedPoint) == "table" and type(savedPoint[1]) == "string"
             and pcall(windowFrame.SetPoint, windowFrame, savedPoint[1], UIParent, savedPoint[2] or savedPoint[1], tonumber(savedPoint[3]) or 0, tonumber(savedPoint[4]) or 0)) then
@@ -504,7 +548,8 @@ function CatalogSearchWindow.constructMainFrame()
     if slVal.SetObeyStepOnDrag then slVal:SetObeyStepOnDrag(true) end
     local slLabel = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     slLabel:SetPoint("RIGHT", slVal, "LEFT", -8, 0)
-    slLabel:SetText(L["투명도"])
+    slLabel:SetText(L["배경 불투명도"])
+    ns.UIKit:FitFontString(slLabel, 150, 1)
     slVal:SetValue(ns.db and ns.db.searchAlpha or 0.92)
     slVal:SetScript("OnValueChanged", function(_, v)
         if ns.db then ns.db.searchAlpha = v end
@@ -725,9 +770,16 @@ function CatalogSearchWindow.constructMainFrame()
     scrollFrame:SetPoint("TOPLEFT", 18 + TREE_W + 26, coordY)
     scrollFrame:SetPoint("BOTTOMRIGHT", -36, 34)
     listChild = CreateFrame("Frame", nil, scrollFrame)
-    listChild:SetSize(widgetHelper - TREE_W - 90, 1)
+    listChild:SetSize(windowFrame:GetWidth() - TREE_W - 90, 1)
     scrollFrame:SetScrollChild(listChild)
     if ns.ConfigureScrollWheelStep then ns.ConfigureScrollWheelStep(scrollFrame, ROW_H * 1.5) end
+    -- result rows follow the list width when the window is resized
+    local ownListChild = listChild   -- this window's list only (a rebuilt window gets its own)
+    scrollFrame:HookScript("OnSizeChanged", function(self, w)
+        w = tonumber(w) or self:GetWidth()
+        if w and w > 20 then ownListChild:SetWidth(w - 10) end
+    end)
+    CatalogSearchWindow.attachResizeGrip()
 
     local function resolveDefaultRange()
         local loVal, hiVal = ns:GetLevelFilterRange()
@@ -758,16 +810,23 @@ end
 -- Settings "reset window position" / "/ezbg reset": also bring the search and settings windows back to the centre.
 function ns:ResetExtraWindowPositions()
     if not self.db then return end
-    self.db.searchPoint, self.db.cfgPoint = nil, nil
+    self.db.searchPoint, self.db.cfgPoint, self.db.searchSize = nil, nil, nil
     if windowFrame then
         windowFrame:ClearAllPoints()
         windowFrame:SetPoint("CENTER", 60, 0)
+        windowFrame:SetSize(CatalogSearchWindow.savedSize())
     end
     local cfgFrame = self.GetConfigFrame and self.GetConfigFrame()
     if cfgFrame then
         cfgFrame:ClearAllPoints()
         cfgFrame:SetPoint("CENTER")
     end
+end
+
+-- The viewed class changed: the window has no class-specific text, so keep it and
+-- just search again if it is open (the item list was rebuilt for the new class).
+function ns:RefreshCatalogSearchForClass()
+    if windowFrame and windowFrame:IsShown() then CatalogSearchWindow.startSearch() end
 end
 
 function ns:ToggleCatalogSearchWindow()

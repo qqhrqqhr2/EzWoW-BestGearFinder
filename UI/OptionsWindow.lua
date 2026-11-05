@@ -197,6 +197,8 @@ function SettingsDialog.buildConfigWindow()
             ns:RebuildMainGearWindow()
         end,
     })
+    -- the list closes when you click anywhere outside it
+    if ns.UIKit.RegisterPopupMenu and langBtn.languageList then ns.UIKit:RegisterPopupMenu(langBtn.languageList, langBtn) end
 
     createStyledCheckbox(18, -94, 180, L["업그레이드만"], "upgradeOnly", L["현재 착용 장비보다 점수가 높은 것만 보여줍니다."])
     createStyledCheckbox(232, -94, 180, L["출처가 확인된 것만"], "sourcedOnly", L["던전·제작·퀘스트 등 획득처가 확인된 아이템만 보여줍니다. 출처를 알 수 없는 신규 아이템과 저확률 월드 드랍은 제외됩니다."])
@@ -279,7 +281,7 @@ function SettingsDialog.buildConfigWindow()
     local alphaLbl = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     alphaLbl:SetPoint("TOPLEFT", 20, -436)
     alphaLbl:SetTextColor(unpack(Theme.muted))
-    alphaLbl:SetText(L["투명도"])
+    alphaLbl:SetText(L["배경 불투명도"])
     ns.UIKit:FitFontString(alphaLbl, 96, 1)
     local alphaMinus = createStyledButton(120, -432, 24, 20, "-", false, function()
         ns.db.mainAlpha = math.max(0.3, math.floor(((ns.db.mainAlpha or 0.92) - 0.05) * 20 + 0.5) / 20)
@@ -296,8 +298,8 @@ function SettingsDialog.buildConfigWindow()
         if ns.ApplyMainAlpha then ns.ApplyMainAlpha(ns.db.mainAlpha) end
         syncCfg()
     end)
-    attachTip(alphaMinus, L["투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
-    attachTip(alphaPlus, L["투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
+    attachTip(alphaMinus, L["배경 불투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
+    attachTip(alphaPlus, L["배경 불투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
 
     local chanceLbl = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     chanceLbl:SetPoint("TOPLEFT", 236, -436)

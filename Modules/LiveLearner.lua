@@ -66,8 +66,30 @@ function LiveLootLearner.resolveNpcID(guid)
     return isCallOk and entityID or nil
 end
 
-function LiveLootLearner.isItemTrackedForLearning(entityID)
-    return LiveLootLearner.hasGear(entityID) and ns:HasKnownSource(entityID) ~= true
+-- Poor-quality (grey) items are junk: never learn sources for them.
+-- Quality comes from the item API; if the item is not cached yet, the link's grey colour code decides.
+local POOR_QUALITY = (Enum and Enum.ItemQuality and Enum.ItemQuality.Poor) or 0
+function LiveLootLearner.isJunkItem(entityID, link)
+    local quality
+    if C_Item and C_Item.GetItemQualityByID then
+        local isCallOk, q = pcall(C_Item.GetItemQualityByID, entityID)
+        quality = isCallOk and LiveLootLearner.unwrapNonSecretValue(q) or nil
+    end
+    if quality == nil then
+        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+        if type(getInfo) == "function" then
+            local isCallOk, _, _, q = pcall(getInfo, entityID)
+            quality = isCallOk and LiveLootLearner.unwrapNonSecretValue(q) or nil
+        end
+    end
+    if type(quality) == "number" then return quality == POOR_QUALITY end
+    link = LiveLootLearner.unwrapNonSecretValue(link)
+    return type(link) == "string" and link:lower():find("|cff9d9d9d", 1, true) ~= nil
+end
+
+function LiveLootLearner.isItemTrackedForLearning(entityID, link)
+    return LiveLootLearner.hasGear(entityID) and not LiveLootLearner.isJunkItem(entityID, link)
+        and ns:HasKnownSource(entityID) ~= true
 end
 
 function LiveLootLearner.printLearnedSourceNotice(entityID, link)
@@ -82,7 +104,7 @@ function LiveLootLearner.handleChatLootMessage()
     for slot = 1, nodeEntry do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
         local entityID = LiveLootLearner.resolveItemID(link)
-        if entityID and LiveLootLearner.isItemTrackedForLearning(entityID) then
+        if entityID and LiveLootLearner.isItemTrackedForLearning(entityID, link) then
             local boss, npc = nil, nil
             local srcs = { pcall(GetLootSourceInfo, slot) }
             if srcs[1] then
@@ -113,7 +135,7 @@ function LiveLootLearner.onQuestComplete()
         for index = 1, count or 0 do
             local link = GetQuestItemLink and GetQuestItemLink(kind, index)
             local entityID = LiveLootLearner.resolveItemID(link)
-            if entityID and LiveLootLearner.isItemTrackedForLearning(entityID) then
+            if entityID and LiveLootLearner.isItemTrackedForLearning(entityID, link) then
                 if ns:LearnSource(entityID, "quests", { qid = questIDVal, title = titleStr, lvl = 0 }) then LiveLootLearner.printLearnedSourceNotice(entityID, link) end
             end
         end
@@ -131,7 +153,7 @@ function LiveLootLearner.onMerchant()
     for index = 1, (GetMerchantNumItems and GetMerchantNumItems() or 0) do
         local link = GetMerchantItemLink and GetMerchantItemLink(index)
         local entityID = LiveLootLearner.resolveItemID(link)
-        if entityID and LiveLootLearner.isItemTrackedForLearning(entityID) then
+        if entityID and LiveLootLearner.isItemTrackedForLearning(entityID, link) then
             ns:LearnSource(entityID, "vendors", { zone = zone, boss = displayName, npc = npc })
         end
     end
@@ -150,6 +172,58 @@ windowFrame:SetScript("OnEvent", function(_, event)
         elseif event == "PLAYER_TARGET_CHANGED" then LiveLootLearner.recordDiscoveredEntry("target")
         elseif event == "UPDATE_MOUSEOVER_UNIT" then LiveLootLearner.recordDiscoveredEntry("mouseover") end
     end)
+end)
+
+-- Remove sources that were learned for grey (junk) items before junk was excluded.
+-- Items whose quality is not known yet are requested and checked again when their data arrives.
+local pendingJunkCheck = {}
+function LiveLootLearner.pruneJunkEntry(entityID)
+    local learned = ns.db and ns.db.learned
+    if not learned then return end
+    local quality
+    if C_Item and C_Item.GetItemQualityByID then
+        local isCallOk, q = pcall(C_Item.GetItemQualityByID, entityID)
+        quality = isCallOk and LiveLootLearner.unwrapNonSecretValue(q) or nil
+    end
+    if type(quality) ~= "number" then
+        pendingJunkCheck[entityID] = true
+        if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, entityID) end
+        return
+    end
+    pendingJunkCheck[entityID] = nil
+    if quality ~= POOR_QUALITY then return end
+    for _, kind in ipairs({ "drops", "quests", "vendors" }) do
+        if learned[kind] then learned[kind][entityID] = nil end
+    end
+end
+
+function LiveLootLearner.pruneLearnedJunk()
+    local learned = ns.db and ns.db.learned
+    if not learned then return end
+    local ids = {}
+    for _, kind in ipairs({ "drops", "quests", "vendors" }) do
+        for entityID in pairs(learned[kind] or {}) do
+            if type(entityID) == "number" then ids[entityID] = true end
+        end
+    end
+    for entityID in pairs(ids) do LiveLootLearner.pruneJunkEntry(entityID) end
+end
+
+local pruneFrame = CreateFrame("Frame")
+pcall(pruneFrame.RegisterEvent, pruneFrame, "PLAYER_ENTERING_WORLD")
+pcall(pruneFrame.RegisterEvent, pruneFrame, "GET_ITEM_INFO_RECEIVED")
+pruneFrame:SetScript("OnEvent", function(self, event, itemID)
+    if event == "PLAYER_ENTERING_WORLD" then
+        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        if C_Timer and C_Timer.After then
+            C_Timer.After(5, function() pcall(LiveLootLearner.pruneLearnedJunk) end)
+        else
+            pcall(LiveLootLearner.pruneLearnedJunk)
+        end
+    elseif event == "GET_ITEM_INFO_RECEIVED" then
+        itemID = LiveLootLearner.unwrapNonSecretValue(itemID)
+        if itemID and pendingJunkCheck[itemID] then pcall(LiveLootLearner.pruneJunkEntry, itemID) end
+    end
 end)
 
 function ns:LearnedCount()

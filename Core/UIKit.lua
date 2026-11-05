@@ -100,6 +100,60 @@ function UIKit:ElevateModal(frame, baseLevel)
 end
 
 -----------------------------------------------------------------------------
+-- Drop-down menus: close on a mouse press anywhere outside the menu.
+-- Listens to GLOBAL_MOUSE_DOWN only while a menu is open. Nothing is laid over
+-- the screen, so clicks on other UI (and in combat) are never blocked.
+-- If the event is missing on this client, menus simply stay open as before.
+-----------------------------------------------------------------------------
+local openPopups = {}
+local popupWatcher
+
+local function isMouseOverRegion(region)
+    if not (region and region.IsVisible and region:IsVisible()) then return false end
+    if region.IsMouseOver then
+        local ok, over = pcall(region.IsMouseOver, region)
+        if ok then return over and true or false end
+    end
+    if type(MouseIsOver) == "function" then
+        local ok, over = pcall(MouseIsOver, region)
+        if ok then return over and true or false end
+    end
+    return true   -- cannot tell: treat as inside so nothing closes unexpectedly
+end
+
+local function updatePopupWatcher()
+    if not popupWatcher then return end
+    if next(openPopups) then
+        pcall(popupWatcher.RegisterEvent, popupWatcher, "GLOBAL_MOUSE_DOWN")
+    else
+        pcall(popupWatcher.UnregisterEvent, popupWatcher, "GLOBAL_MOUSE_DOWN")
+    end
+end
+
+-- menu: the drop-down frame; ...: its toggle button(s), whose own OnClick opens/closes it.
+function UIKit:RegisterPopupMenu(menu, ...)
+    if not (menu and menu.HookScript) or menu.ezPopupOwners then return end
+    menu.ezPopupOwners = { ... }
+    if not popupWatcher then
+        popupWatcher = CreateFrame("Frame")
+        popupWatcher:SetScript("OnEvent", function()
+            for popup in pairs(openPopups) do
+                local inside = isMouseOverRegion(popup)
+                if not inside then
+                    for _, owner in ipairs(popup.ezPopupOwners) do
+                        if isMouseOverRegion(owner) then inside = true; break end
+                    end
+                end
+                if not inside then popup:Hide() end   -- its OnHide removes it from openPopups
+            end
+        end)
+    end
+    menu:HookScript("OnShow", function(self) openPopups[self] = true; updatePopupWatcher() end)
+    menu:HookScript("OnHide", function(self) openPopups[self] = nil; updatePopupWatcher() end)
+    if menu:IsShown() then openPopups[menu] = true; updatePopupWatcher() end
+end
+
+-----------------------------------------------------------------------------
 -- Text Fitting (long translations such as German must not spill out)
 -----------------------------------------------------------------------------
 local FIT_MIN_SCALE = 0.7

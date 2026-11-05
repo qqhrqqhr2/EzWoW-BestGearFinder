@@ -396,6 +396,7 @@ function MainGearAdvisorWindow.assembleFrame()
     end)
     attachHoverTooltip(sortBtn, L["정렬"], L["슬롯마다 아이템을 어떤 순서로 보여줄지 고릅니다. 방어도, 초당 공격력, 힘·민첩성·체력·지능 등을 체크하면 그 값이 큰 순서로 나옵니다."])
     containerFrame:HookScript("OnHide", function() sortMenu:Hide() end)
+    if ns.UIKit.RegisterPopupMenu then ns.UIKit:RegisterPopupMenu(sortMenu, sortBtn) end
 
     local cfgBtn = ns.CreateStyledButton(containerFrame, 76, 20, (SETTINGS or "설정"), false, function() ns:ToggleSettingsWindow() end)
     cfgBtn:SetPoint("TOPRIGHT", -18, -36)
@@ -419,21 +420,38 @@ function MainGearAdvisorWindow.assembleFrame()
     classMenu:Hide()
     local opts = { { nil, L["내 캐릭터"] } }
     for _, classToken in ipairs(CLASS_ORDER) do opts[#opts + 1] = { classToken, ns:ClassLabel(classToken) } end
+    local classRows = {}
     for i, optionRef in ipairs(opts) do
         local buttonWidget = CreateFrame("Button", nil, classMenu)
         buttonWidget:SetSize(110, 20)
         buttonWidget:SetPoint("TOPLEFT", 5, -8 - (i - 1) * 20)
+        -- marks the class currently shown in the window
+        buttonWidget.sel = buttonWidget:CreateTexture(nil, "BACKGROUND")
+        buttonWidget.sel:SetAllPoints()
+        buttonWidget.sel:SetColorTexture(0.945, 0.741, 0.341, 0.22)
+        buttonWidget.sel:Hide()
         local resolvedValue = buttonWidget:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         resolvedValue:SetPoint("CENTER")
-        resolvedValue:SetText(optionRef[2])
-        ns.UIKit:FitFontString(resolvedValue, 102, 1)
+        buttonWidget.text, buttonWidget.value, buttonWidget.label = resolvedValue, optionRef[1], optionRef[2]
         buttonWidget:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
         buttonWidget:SetScript("OnClick", function()
             classMenu:Hide()
             ns:SetViewClass(optionRef[1])
-            ns:RebuildMainGearWindow()
+            ns:RebuildMainGearWindow(true)
         end)
+        classRows[i] = buttonWidget
     end
+    local function markSelectedClass()
+        for _, row in ipairs(classRows) do
+            local selected = row.value == ns.viewClass
+            row.sel:SetShown(selected)
+            row.text:SetText((selected and "> " or "") .. row.label)
+            if selected then row.text:SetTextColor(0.945, 0.741, 0.341) else row.text:SetTextColor(0.929, 0.957, 0.969) end
+            ns.UIKit:FitFontString(row.text, 102, 1)
+        end
+    end
+    markSelectedClass()
+    classMenu:HookScript("OnShow", markSelectedClass)
     attachHoverTooltip(classBtn, L["직업 보기"], L["다른 직업의 추천 장비를 봅니다. 이때는 내 장비와 비교하지 않는 보기 전용입니다. '내 캐릭터'를 고르면 돌아갑니다."])
     classBtn:SetScript("OnClick", function()
         if classMenu:IsShown() then classMenu:Hide() else sortMenu:Hide(); classMenu:Show() end
@@ -441,6 +459,7 @@ function MainGearAdvisorWindow.assembleFrame()
     -- only one drop-down open at a time
     sortMenu:HookScript("OnShow", function() classMenu:Hide() end)
     containerFrame:HookScript("OnHide", function() classMenu:Hide() end)
+    if ns.UIKit.RegisterPopupMenu then ns.UIKit:RegisterPopupMenu(classMenu, classBtn) end
 
     MainGearAdvisorWindow.resolveSolidBG(containerFrame)
     local function ApplyAlpha(a)
@@ -766,7 +785,10 @@ end
 
 local configFrame, BlizzardOptionsCanvas
 
-function ns:RebuildMainGearWindow()
+-- classOnly = true: only the viewed class changed. The search and settings windows
+-- show no class-specific text, so they are kept instead of being built again
+-- (game frames can never be freed, so every rebuild leaves hidden copies behind).
+function ns:RebuildMainGearWindow(classOnly)
     if containerFrame then
         local wasShown = containerFrame:IsShown()
         containerFrame:Hide()
@@ -778,6 +800,10 @@ function ns:RebuildMainGearWindow()
         chanceEdit, aucChk, containerFrame, ns.frame = nil, nil, nil, nil
         MainGearAdvisorWindow.assembleFrame()
         if wasShown then containerFrame:Show() end
+    end
+    if classOnly then
+        if ns.RefreshCatalogSearchForClass then ns:RefreshCatalogSearchForClass() end
+        return
     end
     if ns.RebuildCatalogSearchWindow then ns:RebuildCatalogSearchWindow() end
     if configFrame then
