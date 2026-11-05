@@ -16,6 +16,14 @@ function ns:SuppressItemTooltip(v) ns.tipSuppressed = v end
 function TooltipUpgradeAdvisor.resolveItemIDFrom(tt, data)
     local entityID = data and data.id
     if type(entityID) == "number" then return entityID end
+    if tt and TooltipUtil and TooltipUtil.GetDisplayedItem then
+        local isCallOk, _, link, itemID = pcall(TooltipUtil.GetDisplayedItem, tt)
+        if isCallOk and type(itemID) == "number" then return itemID end
+        if isCallOk and type(link) == "string" then
+            local nodeEntry = tonumber(link:match("item:(%d+)"))
+            if nodeEntry then return nodeEntry end
+        end
+    end
     if tt and tt.GetItem then
         local isCallOk, _, link = pcall(tt.GetItem, tt)
         if isCallOk and type(link) == "string" then
@@ -47,7 +55,9 @@ end
 
 function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
     if not ns.db or ns.db.itemTooltip == false then return end
-    
+    -- never decorate the addon's own hidden scan tooltip (Core/Init.lua hasClassAllowed)
+    if tt and tt.GetName and tt:GetName() == "EzWoWBestGearFinderScanTip" then return end
+
     if tt == GameTooltip then
         if ns.tipSuppressed then return end
         local okO, ownerFrame = pcall(tt.GetOwner, tt)
@@ -144,11 +154,11 @@ function ns:PrintTooltipDiagnostics()
     local platformHelper = function(t) print("|cff33ccffBGF tip|r " .. t) end
     platformHelper("TooltipDataProcessor=" .. tostring(TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and true or false)
         .. " option=" .. tostring(ns.db and ns.db.itemTooltip) .. " index=" .. tostring(ns.indexState))
-    local isCallOk, _, link = pcall(GameTooltip.GetItem, GameTooltip)
-    local entityID = isCallOk and type(link) == "string" and tonumber(link:match("item:(%d+)"))
+    local isCallOk, entityID = pcall(TooltipUpgradeAdvisor.resolveItemIDFrom, GameTooltip, nil)
+    entityID = isCallOk and entityID or nil
     platformHelper("hover item=" .. tostring(entityID) .. " inData=" .. tostring(entityID and ns.index and ns.index[entityID] and true or false)
         .. " hookCalls=" .. tostring(ns.tipCalls or 0))
-    ns.db.tipDebug = true
+    if ns.db then ns.db.tipDebug = true end
     errShown = false
 end
 

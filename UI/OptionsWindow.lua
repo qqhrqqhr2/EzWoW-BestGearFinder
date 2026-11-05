@@ -31,7 +31,15 @@ function SettingsDialog.buildConfigWindow()
     if ns.GetConfigFrame() then return ns.GetConfigFrame() end
     local windowFrame = CreateFrame("Frame", "EzWoWBestGearFinderConfig", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     windowFrame:SetSize(460, 536)
-    windowFrame:SetPoint("CENTER")
+    local savedPoint = ns.db and ns.db.cfgPoint
+    if type(savedPoint) == "table" and type(savedPoint[1]) == "string" then
+        if not pcall(windowFrame.SetPoint, windowFrame, savedPoint[1], UIParent, savedPoint[2] or savedPoint[1], tonumber(savedPoint[3]) or 0, tonumber(savedPoint[4]) or 0) then
+            windowFrame:ClearAllPoints()
+            windowFrame:SetPoint("CENTER")
+        end
+    else
+        windowFrame:SetPoint("CENTER")
+    end
     windowFrame:SetFrameStrata("FULLSCREEN_DIALOG")
     windowFrame:SetToplevel(true)
     windowFrame:SetClampedToScreen(true)
@@ -42,7 +50,7 @@ function SettingsDialog.buildConfigWindow()
         windowFrame:SetBackdropColor(unpack(Theme.bg))
         windowFrame:SetBackdropBorderColor(unpack(Theme.border))
     end
-    if UISpecialFrames then tinsert(UISpecialFrames, "EzWoWBestGearFinderConfig") end
+    if UISpecialFrames and not (tContains and tContains(UISpecialFrames, "EzWoWBestGearFinderConfig")) then tinsert(UISpecialFrames, "EzWoWBestGearFinderConfig") end
 
     local top = CreateFrame("Frame", nil, windowFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     top:SetPoint("TOPLEFT", windowFrame, "TOPLEFT", 1, -1)
@@ -55,7 +63,11 @@ function SettingsDialog.buildConfigWindow()
     top:EnableMouse(true)
     top:RegisterForDrag("LeftButton")
     top:SetScript("OnDragStart", function() windowFrame:StartMoving() end)
-    top:SetScript("OnDragStop", function() windowFrame:StopMovingOrSizing() end)
+    top:SetScript("OnDragStop", function()
+        windowFrame:StopMovingOrSizing()
+        local point, _, relPoint, ox, oy = windowFrame:GetPoint()
+        if ns.db and point then ns.db.cfgPoint = { point, relPoint, ox, oy } end
+    end)
 
     local accentLine = top:CreateTexture(nil, "ARTWORK")
     accentLine:SetColorTexture(unpack(Theme.accent))
@@ -200,6 +212,15 @@ function SettingsDialog.buildConfigWindow()
     perLbl:SetTextColor(unpack(Theme.muted))
     perLbl:SetText(L["슬롯당 표시 개수"])
     ns.UIKit:FitFontString(perLbl, 116, 1)
+    local function attachTip(btn, title, tipText)
+        btn:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(title, unpack(Theme.accent))
+            GameTooltip:AddLine(tipText, 0.85, 0.90, 0.95, true)
+            GameTooltip:Show()
+        end)
+        btn:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    end
     local perMinus = createStyledButton(140, -198, 22, 20, "-", false, function()
         ns.db.perSlot = math.max(2, (ns.db.perSlot or 2) - 1)
         ns:Refresh(true)
@@ -210,11 +231,13 @@ function SettingsDialog.buildConfigWindow()
     perVal:SetWidth(38)
     perVal:SetJustifyH("CENTER")
     perVal:SetTextColor(unpack(Theme.text))
-    createStyledButton(204, -198, 22, 20, "+", false, function()
+    local perPlus = createStyledButton(204, -198, 22, 20, "+", false, function()
         ns.db.perSlot = math.min(10, (ns.db.perSlot or 2) + 1)
         ns:Refresh(true)
         syncCfg()
     end)
+    attachTip(perMinus, L["슬롯당 표시 개수"], L["부위마다 역할별로 보여 줄 후보 수입니다. (2~10)"])
+    attachTip(perPlus, L["슬롯당 표시 개수"], L["부위마다 역할별로 보여 줄 후보 수입니다. (2~10)"])
 
     createSectionDivider(-228, L["출처"])
     createStyledCheckbox(18, -252, 180, L["제작템 포함"], "crafting", L["전문기술로 만드는 장비를 포함합니다."])
@@ -268,11 +291,13 @@ function SettingsDialog.buildConfigWindow()
     alphaVal:SetWidth(46)
     alphaVal:SetJustifyH("CENTER")
     alphaVal:SetTextColor(unpack(Theme.text))
-    createStyledButton(194, -432, 24, 20, "+", false, function()
+    local alphaPlus = createStyledButton(194, -432, 24, 20, "+", false, function()
         ns.db.mainAlpha = math.min(1.0, math.floor(((ns.db.mainAlpha or 0.92) + 0.05) * 20 + 0.5) / 20)
         if ns.ApplyMainAlpha then ns.ApplyMainAlpha(ns.db.mainAlpha) end
         syncCfg()
     end)
+    attachTip(alphaMinus, L["투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
+    attachTip(alphaPlus, L["투명도"], L["추천 장비 창 배경의 불투명도입니다. 값이 클수록 배경이 진해집니다. (30~100%)"])
 
     local chanceLbl = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     chanceLbl:SetPoint("TOPLEFT", 236, -436)
@@ -291,17 +316,20 @@ function SettingsDialog.buildConfigWindow()
     chanceVal:SetWidth(38)
     chanceVal:SetJustifyH("CENTER")
     chanceVal:SetTextColor(unpack(Theme.text))
-    createStyledButton(418, -432, 22, 20, "+", false, function()
+    local chancePlus = createStyledButton(418, -432, 22, 20, "+", false, function()
         ns.db.minChance = math.min(20, math.floor(((ns.db.minChance or 1) + 0.5) * 2 + 0.5) / 2)
         ns:Refresh(true)
         syncCfg()
     end)
+    attachTip(chanceMinus, L["월드 드랍 (저확률)"], L["드랍률이 이 값보다 낮은 출처는 '월드 드랍'으로 분류합니다. (0~20%)"])
+    attachTip(chancePlus, L["월드 드랍 (저확률)"], L["드랍률이 이 값보다 낮은 출처는 '월드 드랍'으로 분류합니다. (0~20%)"])
 
     createStyledButton(20, -472, 204, 28, L["창 위치 초기화"] .. " / " .. L["아이콘 복원"], false, function()
         ns.db.point = nil
         ns.db.iconShown = true
         if ns.frame then ns.frame:ClearAllPoints(); ns.frame:SetPoint("CENTER") end
         if ns.ResetLauncher then ns:ResetLauncher() end
+        if ns.ResetExtraWindowPositions then ns:ResetExtraWindowPositions() end
         if syncCfg then syncCfg() end
         if ns.Print then ns.Print(L["창 위치를 초기화했습니다."]) end
     end)

@@ -108,6 +108,13 @@ function QuickLauncherButton.constructMainFrame()
         QuickLauncherButton.persistPosition(self)
         self.dragging = false
     end)
+    -- hidden mid-drag (icon option turned off): stop following the cursor and keep the spot
+    actionBtn:SetScript("OnHide", function(self)
+        if not self.dragging then return end
+        self:SetScript("OnUpdate", nil)
+        QuickLauncherButton.persistPosition(self)
+        self.dragging = false
+    end)
     actionBtn:SetScript("OnClick", function(self, button)
         if self.dragging then return end
         if button == "RightButton" then
@@ -135,7 +142,8 @@ function ns:UpdateLauncher()
     if not actionBtn then
         QuickLauncherButton.constructMainFrame()
     end
-    QuickLauncherButton.commitPosition()
+    -- UpdateUI calls this on every refresh: never re-anchor while the icon is being dragged
+    if not actionBtn.dragging then QuickLauncherButton.commitPosition() end
     if self.db.iconShown ~= false then
         actionBtn:Show()
     else

@@ -168,8 +168,10 @@ function CatalogSearchWindow.resolveRow(i)
             end
             return
         end
-        if IsShiftKeyDown() and ChatEdit_InsertLink then ChatEdit_InsertLink(self.link)
-        elseif IsControlKeyDown() and DressUpItemLink then DressUpItemLink(self.link) end
+        local insertLink = ChatEdit_InsertLink or (ChatFrameUtil and ChatFrameUtil.InsertLink)
+        local dressUp = DressUpItemLink or (C_Item and C_Item.DressUpItemLink)
+        if IsShiftKeyDown() and insertLink then insertLink(self.link)
+        elseif IsControlKeyDown() and dressUp then dressUp(self.link) end
     end)
     rowWidgets[i] = rowEntry
     return rowEntry
@@ -451,7 +453,12 @@ end
 function CatalogSearchWindow.constructMainFrame()
     windowFrame = CreateFrame("Frame", "EzWoWBestGearFinderSearchFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     windowFrame:SetSize(widgetHelper, headerFrameRef)
-    windowFrame:SetPoint("CENTER", 60, 0)
+    local savedPoint = ns.db and ns.db.searchPoint
+    if not (type(savedPoint) == "table" and type(savedPoint[1]) == "string"
+            and pcall(windowFrame.SetPoint, windowFrame, savedPoint[1], UIParent, savedPoint[2] or savedPoint[1], tonumber(savedPoint[3]) or 0, tonumber(savedPoint[4]) or 0)) then
+        windowFrame:ClearAllPoints()
+        windowFrame:SetPoint("CENTER", 60, 0)
+    end
     windowFrame:SetFrameStrata("DIALOG")
     windowFrame:SetClampedToScreen(true)
     windowFrame:SetMovable(true)
@@ -467,7 +474,11 @@ function CatalogSearchWindow.constructMainFrame()
     end
     commitAlpha(ns.db and ns.db.searchAlpha or 0.92)
     windowFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    windowFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    windowFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, ox, oy = self:GetPoint()
+        if ns.db and point then ns.db.searchPoint = { point, relPoint, ox, oy } end
+    end)
     windowFrame:Hide()
     tinsert(UISpecialFrames, "EzWoWBestGearFinderSearchFrame")
 
@@ -494,7 +505,7 @@ function CatalogSearchWindow.constructMainFrame()
     local slLabel = windowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     slLabel:SetPoint("RIGHT", slVal, "LEFT", -8, 0)
     slLabel:SetText(L["투명도"])
-    slVal:SetValue(ns.db and ns.db.searchAlpha or 0.85)
+    slVal:SetValue(ns.db and ns.db.searchAlpha or 0.92)
     slVal:SetScript("OnValueChanged", function(_, v)
         if ns.db then ns.db.searchAlpha = v end
         commitAlpha(v)
@@ -742,6 +753,21 @@ function ns:RebuildCatalogSearchWindow()
     CatalogSearchWindow.constructMainFrame()
     nameBox:SetText(nameT or ""); minBox:SetText(minT or ""); maxBox:SetText(maxT or "")
     if wasShown then windowFrame:Show() end
+end
+
+-- Settings "reset window position" / "/ezbg reset": also bring the search and settings windows back to the centre.
+function ns:ResetExtraWindowPositions()
+    if not self.db then return end
+    self.db.searchPoint, self.db.cfgPoint = nil, nil
+    if windowFrame then
+        windowFrame:ClearAllPoints()
+        windowFrame:SetPoint("CENTER", 60, 0)
+    end
+    local cfgFrame = self.GetConfigFrame and self.GetConfigFrame()
+    if cfgFrame then
+        cfgFrame:ClearAllPoints()
+        cfgFrame:SetPoint("CENTER")
+    end
 end
 
 function ns:ToggleCatalogSearchWindow()

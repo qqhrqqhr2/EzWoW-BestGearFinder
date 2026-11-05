@@ -436,8 +436,10 @@ function MainGearAdvisorWindow.assembleFrame()
     end
     attachHoverTooltip(classBtn, L["직업 보기"], L["다른 직업의 추천 장비를 봅니다. 이때는 내 장비와 비교하지 않는 보기 전용입니다. '내 캐릭터'를 고르면 돌아갑니다."])
     classBtn:SetScript("OnClick", function()
-        if classMenu:IsShown() then classMenu:Hide() else classMenu:Show() end
+        if classMenu:IsShown() then classMenu:Hide() else sortMenu:Hide(); classMenu:Show() end
     end)
+    -- only one drop-down open at a time
+    sortMenu:HookScript("OnShow", function() classMenu:Hide() end)
     containerFrame:HookScript("OnHide", function() classMenu:Hide() end)
 
     MainGearAdvisorWindow.resolveSolidBG(containerFrame)
@@ -480,6 +482,8 @@ function MainGearAdvisorWindow.assembleFrame()
     maxEdit:SetScript("OnEnterPressed", applyConfiguration)
     minEdit:SetScript("OnTabPressed", function() maxEdit:SetFocus() end)
     maxEdit:SetScript("OnTabPressed", function() minEdit:SetFocus() end)
+    attachHoverTooltip(minEdit, L["요구 레벨"], L["최소~최대 요구 레벨을 입력하고 Enter를 누르면 다시 계산합니다. Tab으로 칸을 옮깁니다."])
+    attachHoverTooltip(maxEdit, L["요구 레벨"], L["최소~최대 요구 레벨을 입력하고 Enter를 누르면 다시 계산합니다. Tab으로 칸을 옮깁니다."])
 
     local searchBtn = ns.CreateStyledButton(containerFrame, 64, 22, L["검색"], true, applyConfiguration)
     searchBtn:SetPoint("LEFT", maxEdit, "RIGHT", 8, 0)
@@ -634,8 +638,10 @@ function ns:UpdateUI()
     local loVal, hiVal, hasAuto = self:GetLevelFilterRange()
     if not minEdit:HasFocus() then minEdit:SetText(tostring(loVal)) end
     if not maxEdit:HasFocus() then maxEdit:SetText(tostring(hiVal)) end
-    if configFrame and configFrame:IsShown() and configFrame.RefreshCfg then
-        configFrame.RefreshCfg()
+    -- `local configFrame` is declared further down this file, so go through the accessor
+    local cfgFrame = ns.GetConfigFrame and ns.GetConfigFrame()
+    if cfgFrame and cfgFrame:IsShown() and cfgFrame.RefreshCfg then
+        cfgFrame.RefreshCfg()
     end
 
     MainGearAdvisorWindow.assignProgress(nil)
@@ -700,7 +706,7 @@ function ns:UpdateUI()
                     rowEntry.baseLink, rowEntry.weights = recordEntry.baseLink, recordEntry.weights
                     rowEntry.comparable, rowEntry.compareNote = recordEntry.comparable, recordEntry.compareNote
                     rowEntry.icon:SetTexture(recordEntry.rec.icon)
-                    local quality = ITEM_QUALITY_COLORS[recordEntry.quality] or { r = 0.5, g = 0.6, b = 0.7 }
+                    local quality = (ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[recordEntry.quality]) or { r = 0.5, g = 0.6, b = 0.7 }
                     rowEntry.accent:SetColorTexture(quality.r, quality.g, quality.b, 0.85)
                     rowEntry.bg:SetColorTexture(recordEntry.upgrade and 0.095 or 0.114, recordEntry.upgrade and 0.185 or 0.157, recordEntry.upgrade and 0.175 or 0.192, 0.95)
                     rowEntry.name:SetText(recordEntry.link)
@@ -793,7 +799,7 @@ function ns:ToggleMainGearWindow()
     if containerFrame:IsShown() then containerFrame:Hide() else containerFrame:Show() end
 end
 
-ns.ApplyAlpha = ApplyAlpha
+ns.ApplyAlpha = function(a) if ns.ApplyMainAlpha then ns.ApplyMainAlpha(a) end end
 ns.GetConfigFrame = function() return configFrame end
 ns.SetConfigFrame = function(f) configFrame = f end
 ns.GetOptionsPanel = function() return BlizzardOptionsCanvas end

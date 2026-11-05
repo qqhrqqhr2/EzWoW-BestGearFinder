@@ -590,6 +590,7 @@ local allowCache = {}
 function GearScoringEngine.invalidateItemCaches(id)
     for link in pairs(statsLinks[id] or {}) do statsCache[link] = nil end
     statsLinks[id] = nil
+    tooltipStatsByID[id] = nil
     allowCache[id] = nil
     local rec = ns.index and ns.index[id]
     if type(rec) == "table" then rec.junk = nil end
@@ -599,24 +600,49 @@ end
 function GearScoringEngine.hasClassAllowed(id)
     local themeColor = allowCache[id]
     if themeColor ~= nil then return themeColor end
-    if not inspectTip then
-        inspectTip = CreateFrame("GameTooltip", "EzWoWBestGearFinderScanTip", UIParent, "GameTooltipTemplate")
+    if not classPrefix then
         classPrefix = ((ITEM_CLASSES_ALLOWED or "Classes: %s"):gsub("%%s", ""))
     end
-    inspectTip:SetOwner(UIParent, "ANCHOR_NONE")
-    inspectTip:ClearLines()
-    local isCallOk = pcall(inspectTip.SetHyperlink, inspectTip, "item:" .. id)
-    local nodeEntry = inspectTip:NumLines()
-    if not isCallOk or nodeEntry == 0 then return nil end
-    local localized = ns:GetActiveClassDisplayName()
+    -- Read the tooltip lines: C_TooltipInfo (modern client, no frame / no tooltip hooks fired) or a hidden scan tooltip.
+    local lines = {}
+    if C_TooltipInfo and C_TooltipInfo.GetItemByID then
+        local okInfo, payloadData = pcall(C_TooltipInfo.GetItemByID, id)
+        if okInfo and type(payloadData) == "table" and type(payloadData.lines) == "table" then
+            for index, lnVal in ipairs(payloadData.lines) do
+                local txt = lnVal.leftText
+                if type(txt) == "string" and not (issecretvalue and issecretvalue(txt)) then lines[index] = txt else lines[index] = false end
+            end
+        end
+    end
+    if #lines == 0 then
+        if not inspectTip then
+            inspectTip = CreateFrame("GameTooltip", "EzWoWBestGearFinderScanTip", UIParent, "GameTooltipTemplate")
+        end
+        inspectTip:SetOwner(UIParent, "ANCHOR_NONE")
+        inspectTip:ClearLines()
+        local isCallOk = pcall(inspectTip.SetHyperlink, inspectTip, "item:" .. id)
+        local nodeEntry = isCallOk and inspectTip:NumLines() or 0
+        for index = 1, nodeEntry do
+            local labelRegion = _G["EzWoWBestGearFinderScanTipTextLeft" .. index]
+            lines[index] = (labelRegion and labelRegion:GetText()) or false
+        end
+    end
+    if #lines == 0 then return nil end
+    local classToken = ns:GetActiveClassToken()
+    local names = { ns:GetActiveClassDisplayName() }
+    if LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[classToken] then names[#names + 1] = LOCALIZED_CLASS_NAMES_MALE[classToken] end
+    if LOCALIZED_CLASS_NAMES_FEMALE and LOCALIZED_CLASS_NAMES_FEMALE[classToken] then names[#names + 1] = LOCALIZED_CLASS_NAMES_FEMALE[classToken] end
     local result = true
-    for index = 2, nodeEntry do
-        local labelRegion = _G["EzWoWBestGearFinderScanTipTextLeft" .. index]
-        local resolvedValue = labelRegion and labelRegion:GetText()
+    for index = 2, #lines do
+        local resolvedValue = lines[index]
         if resolvedValue then
             local _, e = resolvedValue:find(classPrefix, 1, true)
             if e then
-                result = resolvedValue:sub(e + 1):find(localized, 1, true) ~= nil
+                local rest = resolvedValue:sub(e + 1)
+                result = false
+                for _, nmVal in ipairs(names) do
+                    if type(nmVal) == "string" and nmVal ~= "" and rest:find(nmVal, 1, true) then result = true; break end
+                end
                 break
             end
         end
@@ -922,6 +948,7 @@ function ns:EvaluateAllSlotCandidates()
     local mhVal = (not other) and GetInventoryItemLink("player", 16) or nil
     if mhVal then
         local _, _, _, localeTbl = resolveItemInfoInstantC(mhVal)
+        -- INVTYPE_RANGED is only a guard in case a client ever puts a bow in the main-hand slot
         twoHanded = (localeTbl == "INVTYPE_2HWEAPON" or localeTbl == "INVTYPE_RANGED")
     end
 
@@ -997,7 +1024,9 @@ function ns:EvaluateAllSlotCandidates()
                 local picked = {}
                 
                 local worn = {}
-                for _, invSlot in ipairs(greenVal.inv) do
+                -- one-hand weapons can sit in either hand (dual wield): the weapon held in the other hand is not an upgrade either
+                local wornSlots = (greenVal.key == "MAIN1H" or greenVal.key == "OFF") and { 16, 17 } or greenVal.inv
+                for _, invSlot in ipairs(wornSlots) do
                     local wid = (not other) and GetInventoryItemID and GetInventoryItemID("player", invSlot)
                     if wid then worn[wid] = true end
                 end
@@ -1011,7 +1040,8 @@ function ns:EvaluateAllSlotCandidates()
                     return false
                 end
                 for _, boxWidth in ipairs(itemList) do
-                    local hasUpgrade = comparable and boxWidth.score > base * (1 + ns.UPGRADE_MARGIN_PCT) + ns.UPGRADE_MARGIN_ABS
+                    -- an item already worn in this group (e.g. the better ring/trinket) is never an upgrade over the other slot
+                    local hasUpgrade = comparable and not worn[boxWidth.e.id] and boxWidth.score > base * (1 + ns.UPGRADE_MARGIN_PCT) + ns.UPGRADE_MARGIN_ABS
                     if priorityQueue and not doesCandidateMatchFilter(boxWidth.e) then
                         
                     elseif (priorityQueue or presentReference or not savedDB.upgradeOnly or hasUpgrade) and (priorityQueue or not (boxWidth.bis == 2 and worn[boxWidth.e.id])) then
@@ -1447,6 +1477,7 @@ function ns:ForceRefresh()
     scoreCache = {}
     wipe(statsCache)
     wipe(statsLinks)
+    wipe(tooltipStatsByID)
     wipe(allowCache)
     wipe(requested)
     wipe(queueHi)
@@ -1600,6 +1631,7 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
         if not rec then platformHelper("not in index (not equippable, or not in data)"); return end
         local _, class = UnitClass("player")
         local rules = ns.CLASS_RULES[class]
+        if not rules then platformHelper("no class rules for " .. tostring(class)); return end
         local level = UnitLevel("player")
         local dwVal = rules.dualWield and level >= (ns.DUAL_WIELD_LEVEL[class] or 99) or false
         local minReq, maxReq = ns:GetLevelFilterRange()
@@ -1643,6 +1675,7 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
         savedDB.point = nil
         if ns.frame then ns.frame:ClearAllPoints() ns.frame:SetPoint("CENTER") end
         ns:ResetLauncher()
+        if ns.ResetExtraWindowPositions then ns:ResetExtraWindowPositions() end
         GearScoringEngine.printAddonChatMessage(L["창 위치를 초기화했습니다."])
     elseif msg:match("^%d+%s*[~%-%s]%s*%d+$") then
         local alphaVal, buttonWidget = msg:match("^(%d+)%s*[~%-%s]%s*(%d+)$")
@@ -1722,6 +1755,12 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
         GearScoringEngine.printAddonChatMessage(L["신규 아이템을 처음부터 다시 검색합니다."])
         ns:ResetIndex()
         ns:Refresh(true)
+    elseif msg == "help" or msg == "?" or msg == "도움말" then
+        for _, line in ipairs({
+            L["/ezbg : 추천 장비 창 열기/닫기"], L["/ezbg config : 설정창"], L["/ezbg find 이름 : 전체 아이템 검색 창"],
+            L["/ezbg 20-35 : 요구 레벨 범위 지정"], L["/ezbg icon : 아이콘 숨기기 / 보이기"], L["/ezbg reset : 창·아이콘 위치 초기화"],
+            L["/ezbg diag : 상태 진단"],
+        }) do GearScoringEngine.printAddonChatMessage(line) end
     elseif msg == "donate" or msg == "후원" then
         ns:ShowDonate()
     elseif msg == "all" or msg == "전체" then

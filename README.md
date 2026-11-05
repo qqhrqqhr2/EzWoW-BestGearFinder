@@ -91,6 +91,7 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 | `/ezbg 슬롯` · `/ezbg 진단` · `/ezbg 왜 아이템ID` | 슬롯별 요약 · 상태 진단 · 특정 아이템이 왜 빠졌는지 |
 | `/ezbg 초기화` (`reset`) | 창·아이콘 위치 초기화 |
 | `/ezbg lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | 표시 언어 변경 |
+| `/ezbg 도움말` (`help`) | 주요 명령어 목록 |
 
 ### 저장 데이터
 
@@ -184,6 +185,7 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 | `/ezbg slot` · `/ezbg diag` · `/ezbg why itemID` | Per-slot summary · diagnostics · why an item is excluded |
 | `/ezbg reset` | Reset window and icon positions |
 | `/ezbg lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | Change display language |
+| `/ezbg help` | List the main commands |
 
 ### Saved data
 
