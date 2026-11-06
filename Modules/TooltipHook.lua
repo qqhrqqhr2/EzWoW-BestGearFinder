@@ -15,6 +15,7 @@ function ns:SuppressItemTooltip(v) ns.tipSuppressed = v end
 
 function TooltipUpgradeAdvisor.resolveItemIDFrom(tt, data)
     local entityID = data and data.id
+    if issecretvalue and issecretvalue(entityID) then return nil end
     if type(entityID) == "number" then return entityID end
     if tt and TooltipUtil and TooltipUtil.GetDisplayedItem then
         local isCallOk, _, link, itemID = pcall(TooltipUtil.GetDisplayedItem, tt)

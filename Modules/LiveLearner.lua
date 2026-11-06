@@ -92,10 +92,25 @@ function LiveLootLearner.isItemTrackedForLearning(entityID, link)
         and ns:HasKnownSource(entityID) ~= true
 end
 
+-- Chat lines printed during combat can taint the chat history: notices that come in
+-- combat (looting mid-fight) are printed when it ends.
+local pendingNotices = {}
 function LiveLootLearner.printLearnedSourceNotice(entityID, link)
     if ns.db and ns.db.learnNotify and link then
-        print("|cffF1BD57EzWoW - Best Gear Finder|r: " .. L["획득처를 기록했습니다: "] .. link)
+        local text = "|cffF1BD57EzWoW - Best Gear Finder|r: " .. L["획득처를 기록했습니다: "] .. link
+        if InCombatLockdown and InCombatLockdown() then
+            if #pendingNotices < 10 then pendingNotices[#pendingNotices + 1] = text end
+        else
+            print(text)
+        end
     end
+end
+
+function LiveLootLearner.flushLearnedNotices()
+    if InCombatLockdown and InCombatLockdown() then return end
+    local list = pendingNotices
+    pendingNotices = {}
+    for _, text in ipairs(list) do print(text) end
 end
 
 function LiveLootLearner.handleChatLootMessage()
@@ -160,10 +175,14 @@ function LiveLootLearner.onMerchant()
 end
 
 local windowFrame = CreateFrame("Frame")
-for _, eventFrame in ipairs({ "LOOT_OPENED", "QUEST_COMPLETE", "MERCHANT_SHOW", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT" }) do
+for _, eventFrame in ipairs({ "LOOT_OPENED", "QUEST_COMPLETE", "MERCHANT_SHOW", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "PLAYER_REGEN_ENABLED" }) do
     pcall(windowFrame.RegisterEvent, windowFrame, eventFrame)
 end
 windowFrame:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        pcall(LiveLootLearner.flushLearnedNotices)
+        return
+    end
     if not ns.db or ns.db.learn == false then return end
     pcall(function()
         if event == "LOOT_OPENED" then LiveLootLearner.handleChatLootMessage()
