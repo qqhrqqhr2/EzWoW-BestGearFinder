@@ -3,6 +3,71 @@
 -- Modules/TooltipHook.lua : Item Tooltip Stat Upgrade & Drop Source Hook
 --===========================================================================
 local ADDON, ns = ...
+
+-- The "EzWoW - ..." name line at the end of tooltip additions is drawn small.
+-- Shared by the EzWoW addons: the first one loaded sets it up.
+if not (_G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.version == 3) then
+    local sizer = {}
+    sizer.version = 3
+    _G.EzWoWTooltipTagSizer = sizer
+    local smallFont
+    local original = setmetatable({}, { __mode = "k" })   -- font string -> its own font object
+    local function tagFont()
+        if not smallFont and CreateFont then
+            smallFont = _G.EzWoWTooltipTagFont or CreateFont("EzWoWTooltipTagFont")
+            smallFont:CopyFontObject(GameTooltipTextSmall or GameTooltipText)
+            local path, _, flags = smallFont:GetFont()
+            if path then smallFont:SetFont(path, 8, flags) end
+        end
+        return smallFont
+    end
+    local function isTag(text)
+        if type(text) ~= "string" or (issecretvalue and issecretvalue(text)) then return false end
+        return text:find("^EzWoW %- ") ~= nil
+    end
+    local function fit(fs, tag)
+        if not fs then return end
+        if tag then
+            if not original[fs] then original[fs] = fs:GetFontObject() or GameTooltipText end
+            if tagFont() then fs:SetFontObject(smallFont) end
+            fs:SetTextColor(0.5, 0.5, 0.5)
+        elseif original[fs] then
+            fs:SetFontObject(original[fs])
+            original[fs] = nil
+        end
+    end
+    function sizer.Refit(tip)
+        local name = tip and tip.GetName and tip:GetName()
+        if type(name) ~= "string" then return end
+        local ok, count = pcall(tip.NumLines, tip)
+        if not ok or type(count) ~= "number" or (issecretvalue and issecretvalue(count)) then return end
+        for i = 1, count do
+            local right = _G[name .. "TextRight" .. i]
+            if right then fit(right, isTag(right:GetText())) end
+            -- line 1 is the tooltip's title: a left "EzWoW - ..." there stays big
+            local left = _G[name .. "TextLeft" .. i]
+            if left then fit(left, i > 1 and isTag(left:GetText())) end
+        end
+    end
+    local function restore(tip)
+        local name = tip and tip.GetName and tip:GetName()
+        if type(name) ~= "string" then return end
+        local rightPrefix, leftPrefix = name .. "TextRight", name .. "TextLeft"
+        for fs, font in pairs(original) do
+            local fsName = fs.GetName and fs:GetName()
+            if type(fsName) == "string" and (fsName:find(rightPrefix, 1, true) == 1 or fsName:find(leftPrefix, 1, true) == 1) then
+                fs:SetFontObject(font)
+                original[fs] = nil
+            end
+        end
+    end
+    for _, tip in ipairs({ GameTooltip, ItemRefTooltip, ShoppingTooltip1, ShoppingTooltip2 }) do
+        if tip then
+            pcall(hooksecurefunc, tip, "Show", function(self) pcall(sizer.Refit, self) end)
+            pcall(tip.HookScript, tip, "OnTooltipCleared", function(self) pcall(restore, self) end)
+        end
+    end
+end
 local type, pairs, ipairs, tonumber, tostring, select, pcall = type, pairs, ipairs, tonumber, tostring, select, pcall
 
 local TooltipUpgradeAdvisor = ns.TooltipUpgradeAdvisor or {}
@@ -66,36 +131,87 @@ function TooltipUpgradeAdvisor.isAllowedTooltip(tt)
     return false
 end
 
-function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
-    if not ns.db or ns.db.itemTooltip == false then return end
-    if not TooltipUpgradeAdvisor.isAllowedTooltip(tt) then return end
-
-    if tt == GameTooltip then
-        if ns.tipSuppressed then return end
-        local okO, ownerFrame = pcall(tt.GetOwner, tt)
-        if okO and type(ownerFrame) == "table" and ownerFrame.bgfRow then return end
+-----------------------------------------------------------------------------
+-- Equipment comparison on this addon's list rows
+-----------------------------------------------------------------------------
+-- Comparing with equipped gear without Shift now belongs to EzWoW-Tooltip, which turns on the
+-- game's own setting for every item tooltip (these rows included). Only while it is not loaded
+-- do the rows open the comparison themselves.
+ns.EQUIP_COMPARE_OWNER = "EzWoW-Tooltip"
+function ns:IsAddOnLoadedSafe(name)
+    local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
+    if type(isLoaded) ~= "function" then return false end
+    local ok, loadedOrLoading, loaded = pcall(isLoaded, name)
+    return ok and (loadedOrLoading or loaded) and true or false
+end
+function ns:ShowRowComparison(tt)
+    if ns:IsAddOnLoadedSafe(ns.EQUIP_COMPARE_OWNER) then return end
+    if (ns.db and ns.db.showEquipCompare ~= false) or (IsShiftKeyDown and IsShiftKeyDown()) then
+        if GameTooltip_ShowCompareItem then pcall(GameTooltip_ShowCompareItem, tt or GameTooltip) end
     end
+end
+
+function TooltipUpgradeAdvisor.tooltipWanted(tt)
+    if not ns.db or ns.db.itemTooltip == false then return false end
+    if not TooltipUpgradeAdvisor.isAllowedTooltip(tt) then return false end
+    if tt == GameTooltip then
+        if ns.tipSuppressed then return false end
+        local okO, ownerFrame = pcall(tt.GetOwner, tt)
+        if okO and type(ownerFrame) == "table" and ownerFrame.bgfRow then return false end
+    end
+    return true
+end
+
+-- At least one real source (drop, quest, vendor, craft) is known for the item.
+function TooltipUpgradeAdvisor.hasRealSource(recordItem)
+    for _, stateFlag in ipairs(recordItem and recordItem.src or {}) do
+        if stateFlag.kind ~= "unknown" then return true end
+    end
+    return false
+end
+
+-- Source lines in item tooltips are this addon's job while its option is on. EzWoW-Tooltip asks
+-- here and leaves out its own source lines for the items this returns true for.
+-- Returns: sources shown, craft reagents/recipe source shown.
+function ns:CoversItemSource(tt, entityID)
+    entityID = tonumber(entityID)
+    if not entityID or not TooltipUpgradeAdvisor.tooltipWanted(tt) then return false, false end
+    if ns.indexState ~= "done" or not ns.index then return false, false end
+    local recordItem = ns.index[entityID]
+    if not TooltipUpgradeAdvisor.hasRealSource(recordItem) then return false, false end
+    local craft = false
+    for _, stateFlag in ipairs(recordItem.src) do
+        if stateFlag.kind == "craft" then craft = ns.CraftData and ns.CraftData.info and ns.CraftData.info[entityID] ~= nil; break end
+    end
+    return true, craft and true or false
+end
+
+function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
+    if not TooltipUpgradeAdvisor.tooltipWanted(tt) then return end
     if ns.indexState ~= "done" or not ns.index then
         
         if ns.indexState == "idle" and not (InCombatLockdown and InCombatLockdown()) then ns:EnsureIndex() end
         return
     end
     local recordItem = ns.index[entityID]
-    if not recordItem then
-        
-        if entityID < 200000 or not TooltipUpgradeAdvisor.hasGear(entityID) then return end
-        local est = ns:EstimateSource(entityID)
-        if not est then return end
-        tt:AddLine(" ")
-        tt:AddLine("EzWoW - Best Gear Finder", 0.945, 0.741, 0.341)
-        ns:AddEstimateLines(tt, entityID)
-        return
-    end
-    local etRef = _G.EzWoW_Tooltip or _G.EzWoW_Tooltip
-    local etHasSource = etRef
+    -- EzWoW-Tooltip knows a source for the item: used only when this addon has no real one,
+    -- so a guess or "unknown" line never sits next to an actual source.
+    local etRef = _G.EzWoW_Tooltip
+    local etHasSource = type(etRef) == "table"
         and etRef.db and etRef.db.item and etRef.db.item.showSourceInfo ~= false
         and ((etRef.ItemSourceDB and etRef.ItemSourceDB[entityID])
             or (etRef.CraftedItemDB and etRef.CraftedItemDB[entityID]))
+    if not recordItem then
+
+        if etHasSource or entityID < 200000 or not TooltipUpgradeAdvisor.hasGear(entityID) then return end
+        local est = ns:EstimateSource(entityID)
+        if not est then return end
+        tt:AddLine(" ")
+        ns:AddEstimateLines(tt, entityID)
+        return
+    end
+    -- with a real source here, EzWoW-Tooltip leaves its source lines out (see CoversItemSource)
+    if TooltipUpgradeAdvisor.hasRealSource(recordItem) then etHasSource = false end
 
     local bisLines = {}
     if ns.GetBestInSlotRank and ns.GetSpecList then
@@ -117,7 +233,6 @@ function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
     end
 
     tt:AddLine(" ")
-    tt:AddLine("EzWoW - Best Gear Finder", 0.945, 0.741, 0.341)
     for _, blVal in ipairs(bisLines) do
         tt:AddLine(blVal[1], blVal[2], blVal[3], blVal[4])
     end
@@ -149,11 +264,35 @@ function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
     end
 end
 
+-- Attribution line under this addon's block: once per tooltip display, only when lines were added.
+local TAG_TITLE = "EzWoW - Best Gear Finder"
+local taggedTooltips = setmetatable({}, { __mode = "k" })
+local tagClearHooked = setmetatable({}, { __mode = "k" })
+function TooltipUpgradeAdvisor.lineCount(tt)
+    if type(tt) ~= "table" or type(tt.NumLines) ~= "function" then return nil end
+    local ok, n = pcall(tt.NumLines, tt)
+    if not ok or (issecretvalue and issecretvalue(n)) or type(n) ~= "number" then return nil end
+    return n
+end
+function TooltipUpgradeAdvisor.tagTooltip(tt)
+    if type(tt) ~= "table" or taggedTooltips[tt] or type(tt.AddDoubleLine) ~= "function" then return end
+    if not tagClearHooked[tt] and type(tt.HookScript) == "function" then
+        tagClearHooked[tt] = true
+        pcall(tt.HookScript, tt, "OnTooltipCleared", function(self) taggedTooltips[self] = nil end)
+    end
+    taggedTooltips[tt] = true
+    tt:AddDoubleLine(" ", TAG_TITLE, 0, 0, 0, 0.5, 0.5, 0.5)
+end
+
 local errShown = false
 function TooltipUpgradeAdvisor.handleTooltipItemDisplayed(tt, data)
     local isCallOk, errorObj = pcall(function()
         local entityID = TooltipUpgradeAdvisor.resolveItemIDFrom(tt, data)
-        if entityID then TooltipUpgradeAdvisor.appendEntry(tt, entityID) end
+        if not entityID then return end
+        local linesBefore = TooltipUpgradeAdvisor.lineCount(tt)
+        TooltipUpgradeAdvisor.appendEntry(tt, entityID)
+        local linesAfter = TooltipUpgradeAdvisor.lineCount(tt)
+        if linesBefore and linesAfter and linesAfter > linesBefore then TooltipUpgradeAdvisor.tagTooltip(tt) end
     end)
     if not isCallOk and not errShown and ns.db and ns.db.tipDebug then
         errShown = true

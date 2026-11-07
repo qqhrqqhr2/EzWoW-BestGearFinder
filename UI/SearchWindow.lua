@@ -149,11 +149,7 @@ function CatalogSearchWindow.resolveRow(i)
             GameTooltip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
         end
         GameTooltip:Show()
-        if (ns.db and ns.db.showEquipCompare ~= false) or (IsShiftKeyDown and IsShiftKeyDown()) then
-            if GameTooltip_ShowCompareItem then
-                pcall(GameTooltip_ShowCompareItem, GameTooltip)
-            end
-        end
+        ns:ShowRowComparison(GameTooltip)
     end)
     rowEntry:SetScript("OnLeave", function()
         GameTooltip:Hide()

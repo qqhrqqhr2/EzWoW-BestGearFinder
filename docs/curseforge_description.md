@@ -1,0 +1,93 @@
+<!--
+CurseForge summary (EN): Finds the best gear you can wear right now for your class and level, DPS / heal / tank side by side, and shows where it drops, who crafts it or which quest gives it.
+-->
+
+# EzWoW - Best Gear Finder
+
+**English** · [한국어](#한국어)
+
+Finds the **best gear you can wear right now** for your class and level, slot by slot, and tells you **where it comes from**: dungeon boss and drop chance, profession craft, quest reward or vendor. DPS, healing and tank specs are compared side by side, with the estimated score change versus what you are wearing.
+
+![Gear window](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/ui_en.png)
+
+![Settings window](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/settings_en.png)
+
+*Mock-ups rebuilt from the window sizes, coordinates, colours and strings in the addon code. Item names, scores and sources are made up.*
+
+## Features
+
+### Gear window (`/ezbg`)
+- One column per spec (for example Retribution / Holy / Protection), one block per slot; click a slot header to fold it.
+- Sort by recommendation (role stat weights), level-30 BiS first, or by the sum of chosen stats (armor, DPS, Strength, Agility, Stamina, Intellect, Spirit).
+- Required-level range you can type, or "Auto" (your level - 10 up to your level) that follows you as you level.
+- Green rows and ▲ mark upgrades; `BiS` / `BiS*` mark the level-30 BiS list; the third line shows the required level and source.
+- Hover a row for the comparison with your equipped item and the estimated score. Right-click to find the source on the map (with EzWoW - Map Finder), Shift+click to link, Ctrl+click to preview.
+- Preview other classes from the "My character" menu.
+
+### Item tooltips
+- Bag, reward and chat-link gear shows BiS per role and the sources; crafted gear also lists reagents and where the recipe is learned.
+
+### More
+- Full item search (`/ezbg find name`) by name, boss, level, quality, source type and slot.
+- Learns sources that are missing from its data while you loot, take quest rewards or browse vendors.
+- Quest rewards you cannot pick up yet at your level are left out.
+
+## Working with other EzWoW addons
+- **EzWoW - Tooltip**: when this addon shows its source block on a gear tooltip, EzWoW - Tooltip leaves out its own source lines for that item. Comparing with equipped gear without Shift is set in EzWoW - Tooltip; the option here turns grey while it is installed.
+- **EzWoW - Map Finder**: right-click a row to find its source on the map.
+
+## Commands
+- `/ezbg` (`/bgf`, `/bestgear`, `/내템`) — open the gear window
+- `/ezbg config` — settings
+- `/ezbg find name` — full item search
+- `/ezbg 20-35` — set the required-level range
+- `/ezbg help` — list the commands
+
+Scores are estimates from per-class and per-role stat weights.
+
+Languages: English, 한국어, Deutsch, Français, Español, Русский, 简体中文, 繁體中文.
+
+---
+
+## 한국어
+
+내 직업과 레벨에서 **지금 입을 수 있는 가장 좋은 장비**를 부위별로 찾아 주고, 그 장비가 **어디서 나오는지**(던전 보스 · 드랍률 / 전문기술 제작 / 퀘스트 보상 / 상인 판매) 알려 주는 애드온입니다. 딜 · 힐 · 탱 특성을 나란히 비교하고, 지금 입은 장비보다 얼마나 좋은지(추정 점수 변화 %)도 보여 줍니다.
+
+![추천 장비 창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/ui_ko.png)
+
+![설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/settings_ko.png)
+
+*애드온 코드의 창 크기 · 좌표 · 색상 · 문구로 재현한 예시 화면입니다. 아이템 이름 · 점수 · 획득처는 지어낸 예시입니다.*
+
+## 기능
+
+### 추천 장비 창 (`/ezbg`)
+- 특성별 열(예: 징벌 / 신성 / 보호), 부위별 묶음. 부위 제목을 누르면 접고 펼칩니다.
+- 추천순(역할별 스탯 가중치), 30레벨 BiS 우선, 또는 고른 스탯(방어도 · 초당 공격력 · 힘 · 민첩성 · 체력 · 지능 · 정신력)의 합계 순으로 정렬.
+- 요구 레벨 범위를 직접 입력하거나 "자동"(내 레벨-10 ~ 내 레벨)으로 두면 레벨이 오를 때 같이 바뀝니다.
+- 녹색 행과 ▲는 업그레이드, `BiS` / `BiS*`는 30레벨 BiS 목록, 셋째 줄은 요구 레벨과 획득처.
+- 행에 마우스를 올리면 착용 장비와의 비교와 추정 점수. 우클릭: 지도에서 획득처 찾기(EzWoW - Map Finder), Shift+클릭: 링크, Ctrl+클릭: 미리보기.
+- "내 캐릭터" 메뉴에서 다른 직업도 미리 볼 수 있습니다.
+
+### 아이템 툴팁
+- 가방 · 보상 · 채팅 링크 장비에 역할별 BiS 여부와 획득처를 표시하고, 제작품은 재료와 도안 배우는 곳까지 보여 줍니다.
+
+### 그 밖의 기능
+- 전체 아이템 검색(`/ezbg find 이름`): 이름 · 보스 · 레벨 · 품질 · 획득처 종류 · 부위로 검색.
+- 루팅 · 퀘스트 보상 · 상인 목록에서 데이터에 없던 획득처를 배워 바로 반영합니다.
+- 지금 레벨에서 받을 수 없는 퀘스트 보상은 후보에서 뺍니다.
+
+## 다른 EzWoW 애드온과 함께 쓰기
+- **EzWoW - Tooltip**: 장비 툴팁에 이 애드온의 획득처 블록이 나오면 EzWoW - Tooltip은 그 아이템의 획득처 줄을 생략합니다. "Shift 없이 착용 장비 비교"는 EzWoW - Tooltip에서 설정하며, 설치되어 있는 동안 이 애드온의 해당 칸은 회색이 됩니다.
+- **EzWoW - Map Finder**: 행을 우클릭하면 획득처를 지도에서 찾습니다.
+
+## 명령어
+- `/ezbg` (`/bgf`, `/bestgear`, `/내템`) — 추천 장비 창
+- `/ezbg config` (`설정`) — 설정창
+- `/ezbg find 이름` (`검색 이름`) — 전체 아이템 검색
+- `/ezbg 20-35` — 요구 레벨 범위 지정
+- `/ezbg 도움말` (`help`) — 명령어 목록
+
+점수는 직업 · 역할별 스탯 가중치로 계산한 추정치입니다.
+
+지원 언어: English, 한국어, Deutsch, Français, Español, Русский, 简体中文, 繁體中文.

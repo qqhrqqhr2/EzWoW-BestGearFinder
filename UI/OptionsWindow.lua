@@ -27,6 +27,19 @@ local Theme = {
 }
 local GEAR_FINDER_ICON = "Interface\\AddOns\\EzWoW-BestGearFinder\\Media\\icon"
 
+-- Options that now belong to another EzWoW addon; disabled here while that addon is loaded.
+local MANAGED_BY = {
+    showEquipCompare = {
+        addon = "EzWoW-Tooltip", title = "EzWoW - Tooltip",
+        read = function()
+            local tip = _G.EzWoW_Tooltip
+            local item = type(tip) == "table" and type(tip.db) == "table" and tip.db.item
+            if type(item) ~= "table" then return nil end
+            return item.showEquipCompare ~= false
+        end,
+    },
+}
+
 function SettingsDialog.buildConfigWindow()
     if ns.GetConfigFrame() then return ns.GetConfigFrame() end
     local windowFrame = CreateFrame("Frame", "EzWoWBestGearFinderConfig", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -161,10 +174,12 @@ function SettingsDialog.buildConfigWindow()
             syncCfg()
         end)
         if tipText then
+            if themeColor.SetMotionScriptsWhileDisabled then themeColor:SetMotionScriptsWhileDisabled(true) end
             themeColor:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:AddLine(text, unpack(Theme.accent))
                 GameTooltip:AddLine(tipText, 0.85, 0.90, 0.95, true)
+                if self.ownerNote then GameTooltip:AddLine(self.ownerNote, 0.906, 0.486, 0.439, true) end
                 GameTooltip:Show()
             end)
             themeColor:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -176,6 +191,7 @@ function SettingsDialog.buildConfigWindow()
         displayText:SetTextColor(unpack(Theme.text))
         displayText:SetText(text)
         ns.UIKit:FitFontString(displayText, w or 180, 2)
+        themeColor.labelText, themeColor.baseText, themeColor.labelWidth = displayText, text, w or 180
         cfgChecks[#cfgChecks + 1] = themeColor
         return themeColor
     end
@@ -347,7 +363,25 @@ function SettingsDialog.buildConfigWindow()
     syncCfg = function()
         if not ns.db then return end
         for _, themeColor in ipairs(cfgChecks) do
-            themeColor:SetChecked(ns.db[themeColor.key] and true or false)
+            local checked = ns.db[themeColor.key] and true or false
+            local owner = MANAGED_BY[themeColor.key]
+            if owner and ns:IsAddOnLoadedSafe(owner.addon) then
+                -- the option lives in the owner addon now: show its value, change it there
+                local ok, ownerValue = pcall(owner.read)
+                if ok and ownerValue ~= nil then checked = ownerValue and true or false end
+                themeColor.ownerNote = string.format(L["%s에서 설정합니다"], owner.title)
+                themeColor:Disable()
+                themeColor.labelText:SetText(themeColor.baseText .. " |cff8398a6(" .. themeColor.ownerNote .. ")|r")
+                themeColor.labelText:SetTextColor(unpack(Theme.muted))
+                ns.UIKit:FitFontString(themeColor.labelText, themeColor.labelWidth, 2)
+            elseif owner then
+                themeColor.ownerNote = nil
+                themeColor:Enable()
+                themeColor.labelText:SetText(themeColor.baseText)
+                themeColor.labelText:SetTextColor(unpack(Theme.text))
+                ns.UIKit:FitFontString(themeColor.labelText, themeColor.labelWidth, 2)
+            end
+            themeColor:SetChecked(checked)
         end
         for _, qcVal in ipairs(qualChecks) do
             qcVal:SetChecked(ns.db.qual and ns.db.qual[qcVal.q] and true or false)

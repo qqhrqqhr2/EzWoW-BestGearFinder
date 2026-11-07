@@ -2383,3 +2383,11 @@ zhTW["획득처 불명 (Forever 신규 아이템)"] = "來源不明 (Forever新�
 zhTW["획득처 정보 없음"] = "無來源資訊"
 zhTW["획득처를 기록했습니다: "] = "已記錄來源: "
 zhTW["흑마법사 (딜)"] = "術士 (輸出)"
+-- Options that now belong to another EzWoW addon.
+enVal["%s에서 설정합니다"] = "Set in %s"
+deVal["%s에서 설정합니다"] = "Wird in %s eingestellt"
+frVal["%s에서 설정합니다"] = "Se règle dans %s"
+esVal["%s에서 설정합니다"] = "Se configura en %s"
+ruVal["%s에서 설정합니다"] = "Настраивается в %s"
+zhCN["%s에서 설정합니다"] = "在 %s 中设置"
+zhTW["%s에서 설정합니다"] = "在 %s 中設定"
