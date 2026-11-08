@@ -37,7 +37,7 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 |---|---|---|
 | ① | 정렬 | **추천순**(직업·역할별 스탯 가중치 점수, 기본) 또는 **30레벨 BiS 우선**. 방어도·초당 공격력·힘·민첩성·체력·지능·정신력 등을 체크하면 **체크한 값의 합계가 큰 순서**로 정렬합니다. |
 | ② | 요구 레벨 범위 | 두 칸에 레벨을 넣고 **검색**(또는 Enter). **자동(현재-10)**은 “내 레벨-10 ~ 내 레벨”로 되돌리며, 레벨이 오르면 같이 올라갑니다. |
-| ③ | 역할 열 · 단추 | 직업의 특성별 열(예: 징벌(딜) · 신성(힐) · 보호(탱))을 나란히 보여 줍니다. 오른쪽 위 **내 캐릭터 ▼**에서 다른 직업을 골라 미리 볼 수 있습니다(이때는 내 장비와 비교하지 않습니다). **아이템 검색**은 전체 아이템 검색 창을, **설정**은 설정창을 엽니다. |
+| ③ | 역할 열 · 단추 | 직업의 특성별 열(예: 징벌(딜) · 신성(힐) · 보호(탱))을 나란히 보여 줍니다. 오른쪽 위 **내 캐릭터 ▼**에서 다른 직업을 골라 미리 볼 수 있습니다(이때는 내 장비와 비교하지 않습니다. 목록에는 지금 보고 있는 직업이 `>` 표시와 금색으로 나옵니다). 정렬·직업 펼침 메뉴는 바깥을 누르면 닫힙니다. **아이템 검색**은 전체 아이템 검색 창을, **설정**은 설정창을 엽니다. |
 | ④ | 부위(슬롯) 헤더 | 클릭하면 모든 역할 열에서 그 부위를 접거나 펼칩니다. 접힌 상태는 저장됩니다. |
 | ⑤ | 추천 행 | 녹색 배경과 `▲ +%`는 **업그레이드**, 회색 `%`는 참고용, `BiS`(노랑)/`BiS*`(회색)는 30레벨 BiS 목록 1순위/대체 장비입니다. 셋째 줄은 **요구 레벨 · 획득처**(던전 이름, `제작:대장기술`, `퀘스트:…`, `상인:…`, `월드 드랍`)입니다. |
 | ⑥ | 행 툴팁 | 착용 장비 대비 변화, 추정 점수(이 아이템 / 착용 중)를 보여 줍니다. **우클릭**: EzWoW - Map Finder로 획득처(보스·퀘스트 `Q `·상인 `N `) 위치 검색 / **Shift+좌클릭**: 채팅 링크 / **Ctrl+좌클릭**: 착용 미리보기 |
@@ -47,9 +47,10 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 #### 그 밖의 기능
 
 - **퀘스트 수락 레벨 검사**: 지금 레벨(또는 지정한 범위)에서 받을 수 없는 고레벨 퀘스트 보상은 후보에서 뺍니다.
-- **획득처 자동 기록**: 전리품, 퀘스트 보상, 상인 목록에서 기본 데이터에 없던 획득처를 배워 바로 추천과 툴팁에 반영합니다(`/ezbg 기록`, `/ezbg 내보내기`).
+- **획득처 자동 기록**: 전리품, 퀘스트 보상, 상인 목록에서 기본 데이터에 없던 획득처를 배워 바로 추천과 툴팁에 반영합니다(`/ezbg 기록`, `/ezbg 내보내기`). 회색(잡동사니) 아이템은 기록하지 않고, 예전에 기록된 회색 아이템 항목은 자동으로 지웁니다. 전투 중에 기록되면 “획득처를 기록했습니다” 알림은 전투가 끝난 뒤 채팅에 나옵니다.
 - **아이템 툴팁 확장**: 가방·보상·채팅 링크 아이템에 역할별 BiS 여부와 획득처를 덧붙입니다. 목록에 마우스를 올리면 착용 장비 비교 툴팁을 함께 띄웁니다.
-- **전체 아이템 검색 창** (`/ezbg find 이름`): 이름, 드랍 보스, 요구 레벨, 품질, 획득처 종류, 착용 분류(무기·방어구·방패·성물·목걸이·반지·장신구 등)로 전체 데이터베이스를 찾습니다.
+- **전체 아이템 검색 창** (`/ezbg find 이름`): 이름, 드랍 보스, 요구 레벨, 품질, 획득처 종류, 착용 분류(무기·방어구·방패·성물·목걸이·반지·장신구 등)로 전체 데이터베이스를 찾습니다. 오른쪽 아래 모서리를 끌어 창 크기를 바꿀 수 있고(크기 저장), 배경 불투명도 막대가 있습니다.
+- **가벼운 백그라운드 준비**: 아이템 목록은 창을 열거나 툴팁 표시가 필요할 때 조금씩 만들며, 전투 중에는 잠시 멈췄다가 전투가 끝나면 이어 갑니다.
 
 ### 설정창 (`/ezbg config`)
 
@@ -70,9 +71,9 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 | ③ | 신규 아이템 포함 (출처 불명) | 게임에서 새로 확인된 출처 미확인 아이템 포함 | 켬 |
 | ④ | 등급 | 하급·일반·고급·희귀·영웅·전설 중 표시할 품질 | 고급·희귀·영웅 |
 | ⑤ | 창 열기 버튼 | 추천 장비 창(/ezbg), 아이템 검색 창(/ezbg find) | - |
-| ⑥ | 투명도 | 메인 창 배경 30~100% (5% 단위) | 92% |
+| ⑥ | 배경 불투명도 | 메인 창 배경 30~100% (5% 단위) | 92% |
 | ⑥ | 월드 드랍 기준 | 이 확률(0~20%, 0.5% 단위) 미만 드랍은 “월드 드랍”으로 분류 | 1% |
-| ⑦ | 창 위치 초기화 / 아이콘 복원 · 후원 | 메인 창과 런처 아이콘 위치 초기화 | - |
+| ⑦ | 창 위치 초기화 / 아이콘 복원 · 후원 | 메인 창 · 아이템 검색 창 · 설정창 위치와 검색 창 크기, 런처 아이콘 위치 초기화 | - |
 
 ### 명령어 (`/ezbg`, `/bgf`, `/bestgear`, `/내템`)
 
@@ -89,14 +90,14 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 | `/ezbg 아이콘` (`icon`) | 런처 아이콘 보이기/숨기기 |
 | `/ezbg 재검색` (`rescan`) | 신규 아이템 캐시 초기화 후 다시 탐색 |
 | `/ezbg 기록` · `/ezbg 내보내기` | 자동 학습한 획득처 수 · 내보내기 창 |
-| `/ezbg 슬롯` · `/ezbg 진단` · `/ezbg 왜 아이템ID` | 슬롯별 요약 · 상태 진단 · 특정 아이템이 왜 빠졌는지 |
-| `/ezbg 초기화` (`reset`) | 창·아이콘 위치 초기화 |
+| `/ezbg 슬롯` · `/ezbg 진단` · `/ezbg 왜 아이템ID` · `/ezbg 툴팁` | 슬롯별 요약 · 상태 진단 · 특정 아이템이 왜 빠졌는지 · 아이템 툴팁 진단 |
+| `/ezbg 초기화` (`reset`) | 창(메인 · 검색 · 설정) 위치, 검색 창 크기, 아이콘 위치 초기화 |
 | `/ezbg lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | 표시 언어 변경 |
 | `/ezbg 도움말` (`help`) | 주요 명령어 목록 |
 
 ### 저장 데이터
 
-- `EzWoW_BestGearFinderDB`: 설정, 캐릭터별 레벨 범위, 접힌 부위, 창 위치, 자동 학습한 획득처.
+- `EzWoW_BestGearFinderDB`: 설정, 캐릭터별 레벨 범위, 접힌 부위, 창 위치, 검색 창 크기, 자동 학습한 획득처.
 
 ### 알아두면 좋은 점
 
@@ -137,7 +138,7 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 |---|---|---|
 | ① | Sort | **Recommended** (role stat-weight score, default) or **Level 30 BiS first**. Tick armor, DPS, Strength, Agility, Stamina, Intellect, Spirit… to sort by **the sum of the ticked stats**. |
 | ② | Required-level range | Enter two levels and press **Search** (or Enter). **Auto (Lv-10)** returns to “your level - 10 ~ your level” and follows you as you level. |
-| ③ | Role columns · buttons | One column per spec (e.g. Retribution (DPS) · Holy (Heal) · Protection (Tank)). **My character ▼** previews other classes (no comparison with your gear in that mode). **Item search** opens the full item search, **Settings** the settings window. |
+| ③ | Role columns · buttons | One column per spec (e.g. Retribution (DPS) · Holy (Heal) · Protection (Tank)). **My character ▼** previews other classes (no comparison with your gear in that mode; the class being shown is marked with `>` in gold). The sort and class drop-downs close when you click anywhere else. **Item search** opens the full item search, **Settings** the settings window. |
 | ④ | Slot header | Click to collapse/expand that slot in every column. The state is saved. |
 | ⑤ | Item row | Green background and `▲ +%` = **upgrade**, grey `%` = reference only, `BiS` (yellow) / `BiS*` (grey) = level-30 BiS main / alternative. The third line shows **required level · source** (dungeon, `Craft: Blacksmithing`, `Quest: …`, `Vendor: …`, `World drop`). |
 | ⑥ | Row tooltip | Change versus equipped and estimated score (this item / equipped). **Right-click**: find the source (boss, quest `Q `, vendor `N `) with EzWoW - Map Finder / **Shift+left-click**: link in chat / **Ctrl+left-click**: dress-up preview |
@@ -147,9 +148,10 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 #### More features
 
 - **Quest level check**: quest rewards you cannot pick up yet at your level (or chosen range) are left out.
-- **Learning sources**: loot, quest rewards and vendor lists teach the addon sources missing from its data; they show up in recommendations and tooltips at once (`/ezbg 기록`, `/ezbg export`).
+- **Learning sources**: loot, quest rewards and vendor lists teach the addon sources missing from its data; they show up in recommendations and tooltips at once (`/ezbg learned`, `/ezbg export`). Grey (junk) items are never recorded, and entries recorded for them earlier are removed. When a source is recorded during combat, the chat notice appears after the fight.
 - **Item tooltips**: bag, reward and chat-link tooltips get BiS info per role and the sources. Hovering list rows also opens the equipped-gear comparison.
-- **Full item search** (`/ezbg find name`): search the whole database by name, boss, required level, quality, source type and equip slot (weapons, armor, shields, relics, necks, rings, trinkets, …).
+- **Full item search** (`/ezbg find name`): search the whole database by name, boss, required level, quality, source type and equip slot (weapons, armor, shields, relics, necks, rings, trinkets, …). Drag its bottom-right corner to resize it (the size is saved); it has its own background opacity slider.
+- **Light background work**: the item list is built in small steps when it is needed (opening the window or showing tooltip sources) and pauses during combat, continuing afterwards.
 
 ### Settings window (`/ezbg config`)
 
@@ -170,9 +172,9 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 | ③ | Include new items (source unknown) | Items newly seen in the game with no known source | On |
 | ④ | Quality | Poor, Common, Uncommon, Rare, Epic, Legendary | Uncommon · Rare · Epic |
 | ⑤ | Window buttons | Gear window (/ezbg), item search (/ezbg find) | - |
-| ⑥ | Opacity | Main window background 30–100% (5% steps) | 92% |
+| ⑥ | Background opacity | Main window background 30–100% (5% steps) | 92% |
 | ⑥ | World-drop threshold | Drops below this chance (0–20%, 0.5% steps) count as “World drop” | 1% |
-| ⑦ | Reset Window Pos / Restore icon · Support | Reset the main window and launcher icon | - |
+| ⑦ | Reset Window Pos / Restore icon · Support | Reset the main, item search and settings window positions, the search window size and the launcher icon | - |
 
 ### Slash commands (`/ezbg`, `/bgf`, `/bestgear`, `/내템`)
 
@@ -189,14 +191,14 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 | `/ezbg icon` | Show/hide the launcher icon |
 | `/ezbg rescan` | Clear the new-item cache and scan again |
 | `/ezbg learned` · `/ezbg export` | Count of learned sources · export window |
-| `/ezbg slot` · `/ezbg diag` · `/ezbg why itemID` | Per-slot summary · diagnostics · why an item is excluded |
-| `/ezbg reset` | Reset window and icon positions |
+| `/ezbg slot` · `/ezbg diag` · `/ezbg why itemID` · `/ezbg tip` | Per-slot summary · diagnostics · why an item is excluded · item tooltip diagnostics |
+| `/ezbg reset` | Reset window positions (main, search, settings), the search window size and the icon position |
 | `/ezbg lang <auto\|ko\|en\|de\|fr\|es\|ru\|cn\|tw>` | Change display language |
 | `/ezbg help` | List the main commands |
 
 ### Saved data
 
-- `EzWoW_BestGearFinderDB`: settings, per-character level range, collapsed slots, window position, learned sources.
+- `EzWoW_BestGearFinderDB`: settings, per-character level range, collapsed slots, window positions, search window size, learned sources.
 
 ### Tips
 
