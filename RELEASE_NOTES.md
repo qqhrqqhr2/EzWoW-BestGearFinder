@@ -1,9 +1,11 @@
-# v2.0.13
+# v2.0.14
 
 ### 한국어
-- 게임패드를 지원합니다. 패드로 EzWoW 창을 다루고, 보기(Create) 버튼으로 화면의 EzWoW 프레임으로 이동합니다.
-- EzWoW 애드온끼리 퀘스트·희귀 몬스터·드롭·채집 기록을 공유합니다(기본 켜짐, `/ezshare`).
+- 아이템 드롭처와 드롭 확률을 최신 정보로 갱신하고, 와우 포에버 던전 보스 드롭을 반영했습니다.
+- 새 던전(달라란, 발굴 현장: 저습지, 로데론의 폐허, 영주의 전당)의 드롭을 더했습니다.
+- EzWoW - Data(공용 자료)가 설치돼 있으면 그 자료를 함께 씁니다. 없어도 그대로 동작합니다.
 
 ### English
-- Added gamepad support: EzWoW windows work with a gamepad, and View (Create) moves to the EzWoW frames on screen.
-- EzWoW addons now share quest, rare monster, drop and gathering records (on by default, `/ezshare`).
+- Updated drop sources and chances and added WoW Forever dungeon boss drops.
+- Added drops from the new dungeons (Dalaran, Excavation Site: Wetlands, Ruins of Lordaeron, Hall of Thanes).
+- Uses EzWoW - Data (shared data) when it is installed; works the same without it.
