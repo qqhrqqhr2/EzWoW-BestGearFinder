@@ -462,6 +462,67 @@ function GearScoringEngine.indexBody()
     GearScoringEngine.inspectNewItems()
 end
 
+-----------------------------------------------------------------------------
+-- Shared data (optional EzWoW-Data)
+-- The Data\*.lua tables (GearDB, QUESTS, CraftData, ForeverExtra, DungeonData, WorldData,
+-- ItemSources, NamesKO) are bundled. When EzWoW-Data is installed and its table format is
+-- the one this file understands, they are pointed at the shared copies in its Gear module:
+-- the module is loaded right after login (never during combat; a load asked for in combat
+-- runs when combat ends) and the tables are switched together, only while the index has not
+-- been built yet, so one index never mixes both. Without EzWoW-Data, or when the module is
+-- missing, the bundled tables are used as before. BiS data stays bundled.
+-----------------------------------------------------------------------------
+local SHARED_FORMAT = 2
+
+function GearScoringEngine.sharedDataAPI()
+    local D = _G.EzWoW_Data
+    if type(D) ~= "table" or D.formatVersion ~= SHARED_FORMAT then return nil end
+    if type(D.Load) ~= "function" or type(D.Peek) ~= "function" then return nil end
+    return D
+end
+
+function GearScoringEngine.buildSharedTables(D)
+    local g = D.Peek("Gear")
+    if type(g) ~= "table" or g.formatVersion ~= SHARED_FORMAT then return nil end
+    local need = { g.gearDrops, g.gearKnown, g.gearCrafting, g.questRewards, g.craft, g.craftInfo, g.craftNames,
+                   g.foreverDrops, g.foreverQuests, g.foreverVendors, g.foreverCraft, g.bossDrops, g.dungeonQuests,
+                   g.worldDrops, g.worldVendors, g.worldQuests, g.guide, g.namesKO }
+    for i = 1, 18 do
+        if type(need[i]) ~= "table" then return nil end
+    end
+    if type(g.namesKO.boss) ~= "table" or type(g.namesKO.zone) ~= "table" then return nil end
+    -- questRewards is made like the bundled QuestData.lua (one constructor, ids ascending), so
+    -- pairs() visits the quests in the same order and an item rewarded by several quests lists
+    -- them in the same order as with the bundled data.
+    return {
+        GearDB = { version = g.gearVersion, sources = g.gearDrops, crafting = g.gearCrafting, known = g.gearKnown },
+        QUESTS = g.questRewards,
+        CraftData = { craft = g.craft, info = g.craftInfo, names = g.craftNames },
+        ForeverExtra = { version = g.foreverVersion, drops = g.foreverDrops, quests = g.foreverQuests,
+                         vendors = g.foreverVendors, craft = g.foreverCraft },
+        DungeonData = { drops = g.bossDrops, quests = g.dungeonQuests },
+        WorldData = { drops = g.worldDrops, vendors = g.worldVendors, quests = g.worldQuests },
+        ItemSources = g.guide,
+        NamesKO = g.namesKO,
+    }
+end
+
+function GearScoringEngine.useSharedData(D)
+    if ns.indexState ~= "idle" then return end
+    local isCallOk, shared = pcall(GearScoringEngine.buildSharedTables, D)
+    if not isCallOk or type(shared) ~= "table" then return end
+    for key, value in pairs(shared) do ns[key] = value end
+    ns.sharedData = true
+end
+
+function GearScoringEngine.loadSharedData()
+    local D = GearScoringEngine.sharedDataAPI()
+    if not D then return end
+    pcall(D.Load, "Gear", function(_, ok)
+        if ok then GearScoringEngine.useSharedData(D) end
+    end)
+end
+
 local indexCo
 function ns:EnsureIndex()
     if self.indexState == "running" or self.indexState == "done" or self.indexState == "empty" then return end
@@ -1577,6 +1638,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2)
     if event == "ADDON_LOADED" then
         if arg1 == ADDON then GearScoringEngine.bootstrapDB() end
     elseif event == "PLAYER_LOGIN" then
+        pcall(GearScoringEngine.loadSharedData)
         if ns.UpdateLauncher then pcall(ns.UpdateLauncher, ns) end
         if ns.RegisterOptionsPanel then pcall(ns.RegisterOptionsPanel, ns) end
         -- the index is built when it is needed: by the tooltip option (Modules/TooltipHook.lua)

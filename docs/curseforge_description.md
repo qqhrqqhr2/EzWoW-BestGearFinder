@@ -122,3 +122,15 @@ Languages: English, 한국어, Deutsch, Français, Español, Русский, 简
 점수는 직업 · 역할별 스탯 가중치로 계산한 추정치입니다.
 
 지원 언어: English, 한국어, Deutsch, Français, Español, Русский, 简体中文, 繁體中文.
+
+---
+
+**Support:** If you find this addon useful, you can support its development. [Buy Me a Coffee ☕](https://buymeacoffee.com/qqhrqqhr2)
+
+**후원:** 애드온이 도움이 되셨다면 개발 후원으로 응원해 주세요. [Buy Me a Coffee ☕](https://buymeacoffee.com/qqhrqqhr2)
+
+---
+
+**Data credits:** Item drop sources and drop chances come from **Classic-DB** of the CMaNGOS project ([cmangos/classic-db](https://github.com/cmangos/classic-db), GNU GPL v3). Its license ships with the addon (`LICENSE-DATA.md`).
+
+**데이터 출처:** 아이템 드롭처와 드롭 확률은 CMaNGOS 프로젝트의 **Classic-DB**([cmangos/classic-db](https://github.com/cmangos/classic-db), GNU GPL v3)에서 가져왔습니다. 라이선스 파일(`LICENSE-DATA.md`)을 애드온에 함께 넣었습니다.
