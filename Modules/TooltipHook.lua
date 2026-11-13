@@ -6,9 +6,9 @@ local ADDON, ns = ...
 
 -- The "EzWoW - ..." name line at the end of tooltip additions is drawn small.
 -- Shared by the EzWoW addons: the first one loaded sets it up.
-if not (_G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.version == 3) then
+if not (_G.EzWoWTooltipTagSizer and (tonumber(_G.EzWoWTooltipTagSizer.version) or 0) >= 4) then
     local sizer = {}
-    sizer.version = 3
+    sizer.version = 4
     _G.EzWoWTooltipTagSizer = sizer
     local smallFont
     local original = setmetatable({}, { __mode = "k" })   -- font string -> its own font object
@@ -25,14 +25,25 @@ if not (_G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.version == 3) then
         if type(text) ~= "string" or (issecretvalue and issecretvalue(text)) then return false end
         return text:find("^EzWoW %- ") ~= nil
     end
+    -- the size goes on the line itself too: a size another addon put on the
+    -- line (a font addon) would stay over the font object otherwise
+    local function setSize(fs, font)
+        if not (font and font.GetFont and fs.SetFont) then return end
+        local path, size, flags = font:GetFont()
+        if path and size then fs:SetFont(path, size, flags or "") end
+    end
     local function fit(fs, tag)
         if not fs then return end
         if tag then
             if not original[fs] then original[fs] = fs:GetFontObject() or GameTooltipText end
-            if tagFont() then fs:SetFontObject(smallFont) end
+            if tagFont() then
+                fs:SetFontObject(smallFont)
+                setSize(fs, smallFont)
+            end
             fs:SetTextColor(0.5, 0.5, 0.5)
         elseif original[fs] then
             fs:SetFontObject(original[fs])
+            setSize(fs, original[fs])
             original[fs] = nil
         end
     end
@@ -57,6 +68,7 @@ if not (_G.EzWoWTooltipTagSizer and _G.EzWoWTooltipTagSizer.version == 3) then
             local fsName = fs.GetName and fs:GetName()
             if type(fsName) == "string" and (fsName:find(rightPrefix, 1, true) == 1 or fsName:find(leftPrefix, 1, true) == 1) then
                 fs:SetFontObject(font)
+                setSize(fs, font)
                 original[fs] = nil
             end
         end
@@ -170,13 +182,34 @@ function TooltipUpgradeAdvisor.hasRealSource(recordItem)
     return false
 end
 
--- Source lines in item tooltips are this addon's job while its option is on. EzWoW-Tooltip asks
--- here and leaves out its own source lines for the items this returns true for.
+-- EzWoW-Tooltip shows a source for the item: its source data, or shops and
+-- drops EzWoW users saw in the game (shared records). Its block has them, so
+-- this addon's lines leave them out.
+function TooltipUpgradeAdvisor.tooltipAddonHasSource(entityID)
+    local etRef = _G.EzWoW_Tooltip
+    if type(etRef) ~= "table" or not (etRef.db and etRef.db.item and etRef.db.item.showSourceInfo ~= false) then
+        return false
+    end
+    if (etRef.ItemSourceDB and etRef.ItemSourceDB[entityID]) or (etRef.CraftedItemDB and etRef.CraftedItemDB[entityID]) then
+        return true
+    end
+    local share = _G.EzWoW_Share
+    if type(share) == "table" and type(share.ItemSourceLines) == "function" and share.itemLinesBy == "EzWoW-Tooltip" then
+        local ok, lines = pcall(share.ItemSourceLines, entityID)
+        if ok and type(lines) == "table" and #lines > 0 then return true end
+    end
+    return false
+end
+
+-- Source lines in item tooltips: EzWoW-Tooltip's when it has one for the item,
+-- else this addon's while its option is on. EzWoW-Tooltip asks here and leaves
+-- out its own source lines for the items this returns true for.
 -- Returns: sources shown, craft reagents/recipe source shown.
 function ns:CoversItemSource(tt, entityID)
     entityID = tonumber(entityID)
     if not entityID or not TooltipUpgradeAdvisor.tooltipWanted(tt) then return false, false end
     if ns.indexState ~= "done" or not ns.index then return false, false end
+    if TooltipUpgradeAdvisor.tooltipAddonHasSource(entityID) then return false, false end
     local recordItem = ns.index[entityID]
     if not TooltipUpgradeAdvisor.hasRealSource(recordItem) then return false, false end
     local craft = false
@@ -188,19 +221,43 @@ end
 
 function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
     if not TooltipUpgradeAdvisor.tooltipWanted(tt) then return end
+    return TooltipUpgradeAdvisor.writeEntry(tt, entityID)
+end
+
+-- With EzWoW-Tooltip, this addon's lines go into its block (same look as its
+-- other lines): it asks here for them. { { text, r, g, b }, ... }
+function ns:ItemTooltipLines(tt, entityID)
+    entityID = tonumber(entityID)
+    if not entityID or not TooltipUpgradeAdvisor.tooltipWanted(tt) then return {} end
+    local lines = {}
+    local collector = {
+        AddLine = function(_, text, r, g, b)
+            if type(text) == "string" and text ~= " " and text ~= "" then
+                lines[#lines + 1] = { text, r or 1, g or 1, b or 1 }
+            end
+        end,
+    }
+    local ok = pcall(TooltipUpgradeAdvisor.writeEntry, collector, entityID)
+    return ok and lines or {}
+end
+
+-- the lines are drawn by EzWoW-Tooltip (it set this when it loaded)
+function TooltipUpgradeAdvisor.linesDrawnElsewhere()
+    return ns.tooltipLinesBy ~= nil and ns:IsAddOnLoadedSafe(ns.tooltipLinesBy)
+end
+
+function TooltipUpgradeAdvisor.writeEntry(tt, entityID)
     if ns.indexState ~= "done" or not ns.index then
         
         if ns.indexState == "idle" and not (InCombatLockdown and InCombatLockdown()) then ns:EnsureIndex() end
         return
     end
     local recordItem = ns.index[entityID]
-    -- EzWoW-Tooltip knows a source for the item: used only when this addon has no real one,
-    -- so a guess or "unknown" line never sits next to an actual source.
-    local etRef = _G.EzWoW_Tooltip
-    local etHasSource = type(etRef) == "table"
-        and etRef.db and etRef.db.item and etRef.db.item.showSourceInfo ~= false
-        and ((etRef.ItemSourceDB and etRef.ItemSourceDB[entityID])
-            or (etRef.CraftedItemDB and etRef.CraftedItemDB[entityID]))
+    -- BiS marks need the slots weighed once (also while the window is closed)
+    if recordItem and ns.MaybeRankBis then ns:MaybeRankBis() end
+    -- EzWoW-Tooltip knows a source for the item: its block shows the sources,
+    -- this one only the best-in-slot marks
+    local etHasSource = TooltipUpgradeAdvisor.tooltipAddonHasSource(entityID)
     if not recordItem then
 
         if etHasSource or entityID < 200000 or not TooltipUpgradeAdvisor.hasGear(entityID) then return end
@@ -210,8 +267,6 @@ function TooltipUpgradeAdvisor.appendEntry(tt, entityID)
         ns:AddEstimateLines(tt, entityID)
         return
     end
-    -- with a real source here, EzWoW-Tooltip leaves its source lines out (see CoversItemSource)
-    if TooltipUpgradeAdvisor.hasRealSource(recordItem) then etHasSource = false end
 
     local bisLines = {}
     if ns.GetBestInSlotRank and ns.GetSpecList then
@@ -289,6 +344,7 @@ function TooltipUpgradeAdvisor.handleTooltipItemDisplayed(tt, data)
     local isCallOk, errorObj = pcall(function()
         local entityID = TooltipUpgradeAdvisor.resolveItemIDFrom(tt, data)
         if not entityID then return end
+        if TooltipUpgradeAdvisor.linesDrawnElsewhere() then return end
         local linesBefore = TooltipUpgradeAdvisor.lineCount(tt)
         TooltipUpgradeAdvisor.appendEntry(tt, entityID)
         local linesAfter = TooltipUpgradeAdvisor.lineCount(tt)

@@ -485,18 +485,18 @@ T = {
         "cls": "성기사", "specs": ["징벌 (딜)", "신성 (힐)", "보호 (탱)"],
         "slots": [("머리", False), ("손", False), ("한손 무기", True), ("반지", True)],
         "items": {
-            "머리": [[("서약의 사슬 투구", 3, "+18.2%", "41.6", "BiS*", "요구 24 · 제작:대장기술", True),
-                      ("모래폭풍 투구", 2, "+2.1%", "35.1", "", "요구 27 · 월드 드랍", False)],
-                     [("수행자의 은도금 사슬 투구", 3, "+12.0%", "38.9", "", "요구 26 · 제작:대장기술", True),
-                      ("새벽빛 두건", 2, "+9.4%", "35.2", "", "요구 25 · 통곡의 동굴", True)],
+            "머리": [[("서약의 사슬 투구", 3, "+18.2%", "41.6", "BiS", "요구 24 · 제작:대장기술", True),
+                      ("모래폭풍 투구", 2, "+2.1%", "35.1", "2위", "요구 27 · 월드 드랍", False)],
+                     [("수행자의 은도금 사슬 투구", 3, "+12.0%", "38.9", "BiS", "요구 26 · 제작:대장기술", True),
+                      ("새벽빛 두건", 2, "+9.4%", "35.2", "2위", "요구 25 · 통곡의 동굴", True)],
                      [("수호자의 은도금 사슬 투구", 3, "+21.5%", "52.3", "BiS", "요구 26 · 제작:대장기술", True),
-                      ("역전용사의 은도금 투구", 2, "+9.8%", "46.4", "", "요구 26 · 제작:대장기술", True)]],
+                      ("역전용사의 은도금 투구", 2, "+9.8%", "46.4", "2위", "요구 26 · 제작:대장기술", True)]],
             "손": [[("성전사의 장갑", 3, "+24.7%", "22.8", "BiS", "요구 21 · 제작:대장기술", True),
-                    ("광택나는 미늘 장갑", 2, "+0.8%", "18.6", "", "요구 25 · 죽음의 폐광", False)],
-                   [("바람결 장갑", 2, "+15.4%", "20.4", "", "요구 22 · 퀘스트:잃어버린 순찰대", True),
-                    ("가시덤불 손보호구", 2, "+6.2%", "19.1", "", "요구 24 · 상인:가르텐", True)],
-                   [("수호자의 장갑", 3, "+15.3%", "27.0", "BiS*", "요구 21 · 제작:대장기술", True),
-                    ("빗바랜 사슬 장갑", 2, "+3.1%", "21.4", "", "요구 18 · 통곡의 동굴", True)]],
+                    ("광택나는 미늘 장갑", 2, "+0.8%", "18.6", "2위", "요구 25 · 죽음의 폐광", False)],
+                   [("바람결 장갑", 2, "+15.4%", "20.4", "BiS", "요구 22 · 퀘스트:잃어버린 순찰대", True),
+                    ("가시덤불 손보호구", 2, "+6.2%", "19.1", "2위", "요구 24 · 상인:가르텐", True)],
+                   [("수호자의 장갑", 3, "+15.3%", "27.0", "BiS", "요구 21 · 제작:대장기술", True),
+                    ("빗바랜 사슬 장갑", 2, "+3.1%", "21.4", "2위", "요구 18 · 통곡의 동굴", True)]],
         },
         "status": "요구 레벨 18~28(자동) · 확인된 아이템 1,284개 · 점수는 추정치",
         "tipItem": "서약의 사슬 투구", "tipBind": "착용 시 귀속", "tipSlot": ("머리", "사슬"), "tipArmor": "방어도 208",
@@ -504,13 +504,13 @@ T = {
         "bagItem": "수호자의 은도금 사슬 투구",
         "bagSrc": ["[BiS] 보호 (탱)", "제작: 대장기술 [도안 필요] (숙련 175)", "  재료: 강철 주괴 x10, 은 막대 x2", "  배우는 곳: 대장기술 상인 (아이언포지)"],
         "notes": [
-            ("정렬", "추천순(역할별 스탯 가중치 점수) 또는 30레벨 BiS 우선. 방어도 · 초당 공격력 · 힘 · 민첩성 · 체력 · 지능 · 정신력을 여러 개 고르면 합계 순."),
+            ("정렬 · BiS 기준", "추천순(특성별 능력치 가치로 매긴 점수). 방어도 · 초당 공격력 · 힘 · 민첩성 · 체력 · 지능 · 정신력을 여러 개 고르면 합계 순. BiS 기준: 능력치별 가치와 지금 적중 · 상한. BiS 착용: 캐릭터에 BiS를 입혀 보고 바뀌는 능력치 보기."),
             ("요구 레벨 범위", "직접 입력 후 검색, 또는 “자동(현재-10)”으로 내 레벨-10~현재 레벨."),
             ("역할 열 · 단추", "직업의 딜/힐/탱 특성을 나란히 비교. 오른쪽 위 아이템 검색 · 내 캐릭터 ▼(다른 직업 미리 보기) · 설정."),
             ("슬롯 헤더", "클릭해 모든 열에서 그 부위를 접고 펼칩니다(저장됨)."),
-            ("추천 행", "녹색 배경과 ▲는 업그레이드, BiS/BiS*는 30레벨 BiS 목록, 셋째 줄은 요구 레벨과 획득처(던전 · 제작 · 퀘스트 · 상인 · 월드 드랍)."),
+            ("추천 행", "녹색 배경과 ▲는 업그레이드, BiS는 지금 범위의 점수 1위(끼고 있으면 착용 중), 2위·3위는 더 좋은 대체품, 셋째 줄은 요구 레벨과 획득처(던전 · 제작 · 퀘스트 · 상인 · 월드 드랍)."),
             ("행 툴팁", "착용 장비 대비 변화와 추정 점수. 우클릭: EzWoW - Map Finder로 획득처 찾기, Shift+클릭: 채팅 링크, Ctrl+클릭: 착용 미리보기."),
-            ("아이템 툴팁 획득처", "가방 · 보상 · 채팅 링크 장비에 BiS 여부와 획득처(제작품은 재료 · 배우는 곳) 블록. 이 블록이 나오면 EzWoW - Tooltip은 겹치는 획득처 줄을 생략합니다."),
+            ("아이템 툴팁 획득처", "가방 · 보상 · 채팅 링크 장비에 BiS 여부와 획득처(제작품은 재료 · 배우는 곳) 블록. EzWoW - Tooltip이 있으면 그 블록 안에 함께 나옵니다."),
             ("상태 줄", "현재 범위와 확인된 아이템 수. 오른쪽 아래 모서리로 창 높이 조절."),
         ],
         "foot": "애드온 코드의 창 크기 · 좌표 · 색상 · 문구로 재현한 예시 화면입니다(성기사 28레벨 예시). 아이템 이름 · 점수 · 획득처는 지어낸 예시이고 아이콘은 단순화했습니다.",
@@ -531,18 +531,18 @@ T = {
         "cls": "Paladin", "specs": ["징벌 (딜)", "신성 (힐)", "보호 (탱)"],
         "slots": [("Head", False), ("Hands", False), ("One-Hand", True), ("Finger", True)],
         "items": {
-            "Head": [[("Oathbound Chain Helm", 3, "+18.2%", "41.6", "BiS*", "Req. 24 · Craft: Blacksmithing", True),
-                      ("Sandstorm Helm", 2, "+2.1%", "35.1", "", "Req. 27 · World drop", False)],
-                     [("Adept's Silvered Chain Helm", 3, "+12.0%", "38.9", "", "Req. 26 · Craft: Blacksmithing", True),
-                      ("Dawnlight Hood", 2, "+9.4%", "35.2", "", "Req. 25 · Wailing Caverns", True)],
+            "Head": [[("Oathbound Chain Helm", 3, "+18.2%", "41.6", "BiS", "Req. 24 · Craft: Blacksmithing", True),
+                      ("Sandstorm Helm", 2, "+2.1%", "35.1", "#2", "Req. 27 · World drop", False)],
+                     [("Adept's Silvered Chain Helm", 3, "+12.0%", "38.9", "BiS", "Req. 26 · Craft: Blacksmithing", True),
+                      ("Dawnlight Hood", 2, "+9.4%", "35.2", "#2", "Req. 25 · Wailing Caverns", True)],
                      [("Warden's Silvered Chain Helm", 3, "+21.5%", "52.3", "BiS", "Req. 26 · Craft: Blacksmithing", True),
-                      ("Veteran's Silvered Helm", 2, "+9.8%", "46.4", "", "Req. 26 · Craft: Blacksmithing", True)]],
+                      ("Veteran's Silvered Helm", 2, "+9.8%", "46.4", "#2", "Req. 26 · Craft: Blacksmithing", True)]],
             "Hands": [[("Crusader's Gauntlets", 3, "+24.7%", "22.8", "BiS", "Req. 21 · Craft: Blacksmithing", True),
-                       ("Polished Scale Gloves", 2, "+0.8%", "18.6", "", "Req. 25 · The Deadmines", False)],
-                      [("Windborne Gloves", 2, "+15.4%", "20.4", "", "Req. 22 · Quest: The Lost Patrol", True),
-                       ("Thornbrush Handguards", 2, "+6.2%", "19.1", "", "Req. 24 · Vendor: Garten", True)],
-                      [("Warden's Gauntlets", 3, "+15.3%", "27.0", "BiS*", "Req. 21 · Craft: Blacksmithing", True),
-                       ("Weathered Chain Gloves", 2, "+3.1%", "21.4", "", "Req. 18 · Wailing Caverns", True)]],
+                       ("Polished Scale Gloves", 2, "+0.8%", "18.6", "#2", "Req. 25 · The Deadmines", False)],
+                      [("Windborne Gloves", 2, "+15.4%", "20.4", "BiS", "Req. 22 · Quest: The Lost Patrol", True),
+                       ("Thornbrush Handguards", 2, "+6.2%", "19.1", "#2", "Req. 24 · Vendor: Garten", True)],
+                      [("Warden's Gauntlets", 3, "+15.3%", "27.0", "BiS", "Req. 21 · Craft: Blacksmithing", True),
+                       ("Weathered Chain Gloves", 2, "+3.1%", "21.4", "#2", "Req. 18 · Wailing Caverns", True)]],
         },
         "status": "Required level 18-28 (auto) · 1,284 items found · scores are estimates",
         "tipItem": "Oathbound Chain Helm", "tipBind": "Binds when equipped", "tipSlot": ("Head", "Mail"), "tipArmor": "208 Armor",
@@ -551,13 +551,13 @@ T = {
         "bagSrc": ["[BiS] Protection (Tank)", "Craft: Blacksmithing [recipe needed] (Skill 175)", "  Reagents: Steel Bar x10, Silver Rod x2",
                    "  Learned from: Blacksmithing supplier (Ironforge)"],
         "notes": [
-            ("Sort", "Recommended (role stat-weight score) or Level 30 BiS first. Tick armor, DPS, Strength, Agility, Stamina, Intellect, Spirit… to sort by their sum."),
+            ("Sort · BiS criteria", "Recommended (score from per-spec stat worth). Tick armor, DPS, Strength, Agility, Stamina, Intellect, Spirit… to sort by their sum. BiS criteria: worth of each stat, your hit and the cap. Try on BiS: your character wearing the BiS and the stats that change."),
             ("Required-level range", "Type a range and press Search, or “Auto (Lv-10)” for your level - 10 up to your level."),
             ("Role columns · buttons", "DPS, heal and tank specs side by side. Top right: Item search · My character ▼ (preview other classes) · Settings."),
             ("Slot header", "Click to collapse or expand that slot in every column (saved)."),
-            ("Item row", "Green background and ▲ mark upgrades, BiS/BiS* the level-30 BiS list; the third line is the required level and source (dungeon, craft, quest, vendor, world drop)."),
+            ("Item row", "Green background and ▲ mark upgrades, BiS the top score in the current range (Equipped when worn), #2, #3 the better alternatives; the third line is the required level and source (dungeon, craft, quest, vendor, world drop)."),
             ("Row tooltip", "Change versus equipped and estimated score. Right-click: find the source with EzWoW - Map Finder; Shift+click: chat link; Ctrl+click: dress-up."),
-            ("Sources in item tooltips", "Bag, reward and chat-link gear gets a block with BiS info and sources (reagents and trainer for crafts). When it shows, EzWoW - Tooltip leaves out its overlapping source lines."),
+            ("Sources in item tooltips", "Bag, reward and chat-link gear gets a block with BiS info and sources (reagents and trainer for crafts). With EzWoW - Tooltip installed it appears inside that block."),
             ("Status line", "Current range and items found. Drag the bottom-right corner to change the height."),
         ],
         "foot": "Mock-ups rebuilt from the window sizes, coordinates, colours and strings in the addon code (level 28 Paladin example). Item names, scores and sources are made-up examples; icons are simplified.",
@@ -594,6 +594,8 @@ def ui_page(lang, ctx):
     win.button(frame_w - 10 - 22, 8, 22, 22, "X")
     win.add(text_top(18, 12, f'EzWoW - Best Gear Finder  <span style="color:{CLASS_HEX["PALADIN"]}">{esc(t["cls"])}</span>  Lv.28', 12, css(th["text"])))
     win.button(16, 34, 168, 22, esc(L("정렬: ") + L("추천순")) + " ▼", size=10)
+    win.button(16 + 168 + 6, 34, 76, 22, esc(L("BiS 기준")), size=10)
+    win.button(16 + 168 + 6 + 76 + 6, 34, 76, 22, esc(L("BiS 착용")), accent=True, size=10, bg="rgba(59,48,28,.96)")
     cfg_x = frame_w - 18 - 76
     win.button(cfg_x, 36, 76, 20, "설정" if lang == "ko" else "Settings", size=10)
     win.button(cfg_x - 6 - 110, 36, 110, 20, esc(L("내 캐릭터")) + " ▼", size=10)
@@ -639,7 +641,7 @@ def ui_page(lang, ctx):
                 win.add(text_top(rx + 50, ry + 7, f'<span style="color:{QUALITY[q]}">[{esc(name)}]</span>', 10, "#fff",
                                  width=col_w - 64, style="white-space:nowrap;overflow:hidden"))
                 comp = (f'<span style="color:#68d9a4">▲ {delta}</span>' if up else f'<span style="color:#9baabd">{delta}</span>')
-                badge = {"BiS": ' <span style="color:#ffcf68">BiS</span>', "BiS*": ' <span style="color:#9baabd">BiS*</span>'}.get(bis, "")
+                badge = ' <span style="color:#ffcf68">BiS</span>' if bis == "BiS" else (f' <span style="color:#9baabd">{bis}</span>' if bis else "")
                 win.add(text_top(rx + 50, ry + 24, f'{comp} · {esc(L("점수 %.1f").replace("%.1f", score))}{badge}', 10, "#fff"))
                 win.add(text_top(rx + 50, ry + 40, esc(src), 10, "#8a8a8a"))
                 rows_xy.append((c, k, rx, ry))

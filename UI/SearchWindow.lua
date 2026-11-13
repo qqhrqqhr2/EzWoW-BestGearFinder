@@ -109,6 +109,30 @@ function CatalogSearchWindow.resolveItemHyperlink(row, data)
     row.data = data
 end
 
+function CatalogSearchWindow.addRowHint(tip)
+    if _G.SlashCmdList and _G.SlashCmdList.EZWOWMAPFINDER then
+        tip:AddLine(" ")
+        tip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
+    end
+end
+-- registered on the first row hover (after the other addons' item post-calls)
+local rowHintHooked
+function CatalogSearchWindow.hookRowHint()
+    if rowHintHooked ~= nil then return rowHintHooked end
+    rowHintHooked = false
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Item then
+        local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Item, function(tip)
+            if tip ~= GameTooltip then return end
+            local okOwner, owner = pcall(tip.GetOwner, tip)
+            if okOwner and type(owner) == "table" and owner.isSearchRow and owner.link then
+                pcall(CatalogSearchWindow.addRowHint, tip)
+            end
+        end)
+        rowHintHooked = ok and true or false
+    end
+    return rowHintHooked
+end
+
 function CatalogSearchWindow.resolveRow(i)
     local rowEntry = rowWidgets[i]
     if rowEntry then return rowEntry end
@@ -140,14 +164,14 @@ function CatalogSearchWindow.resolveRow(i)
     rowEntry.src:SetPoint("TOPRIGHT", rowEntry.info, "BOTTOMRIGHT", 0, -5)
     rowEntry.src:SetJustifyH("LEFT")
     rowEntry.src:SetWordWrap(false)
+    rowEntry.isSearchRow = true
     rowEntry:SetScript("OnEnter", function(self)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        -- the map hint comes from the item tooltip post-call, so it stays when the game redraws the tooltip
+        local viaPostCall = CatalogSearchWindow.hookRowHint()
         GameTooltip:SetHyperlink(self.link)
-        if _G.SlashCmdList and _G.SlashCmdList.EZWOWMAPFINDER then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
-        end
+        if not viaPostCall then CatalogSearchWindow.addRowHint(GameTooltip) end
         GameTooltip:Show()
         ns:ShowRowComparison(GameTooltip)
     end)
@@ -306,12 +330,9 @@ function CatalogSearchWindow.executeCatalogSearchBatch()
                         if good and maxL and (req or 0) > maxL then good = false end
                     end
                     if good and extractSafeTooltipText ~= "" then
+                        -- the item name, or a boss / dungeon / quest name as stored or as shown
                         local hit = string.find(string.lower(displayName), extractSafeTooltipText, 1, true)
-                        if not hit then
-                            for _, s in ipairs(rec.src) do
-                                if string.find(string.lower((s.boss or "") .. " " .. (s.inst or "")), extractSafeTooltipText, 1, true) then hit = true; break end
-                            end
-                        end
+                            or string.find(ns:SourceSearchText(rec), extractSafeTooltipText, 1, true)
                         good = hit and true or false
                     end
                     resolved[entityID] = false
@@ -344,8 +365,16 @@ function CatalogSearchWindow.executeCatalogSearchBatch()
         rowEntry.icon:SetTexture(dataEntry.icon)
         local columnIndex = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[dataEntry.quality]
         rowEntry.name:SetText(((columnIndex and type(columnIndex.hex) == "string" and columnIndex.hex) or "|cffffffff") .. dataEntry.name .. "|r")
-        rowEntry.info:SetText(format("%s %d · ilvl %d", L["요구"], dataEntry.req, dataEntry.ilvl))
-        rowEntry.src:SetText(CatalogSearchWindow.resolveKindName(dataEntry.rec.classID, dataEntry.rec.subID) .. " · " .. (ns.FormatCompactDropSource and ns:FormatCompactDropSource(dataEntry.rec, dataEntry.id) or ""))
+        local reqText = (dataEntry.req or 0) > 0 and format(L["요구 %d"], dataEntry.req) or L["요구 없음"]
+        rowEntry.info:SetText(format("%s · ilvl %d", reqText, dataEntry.ilvl))
+        -- BiS / alternative for one of the class's roles (places from the gear window's weighing)
+        local mark = ""
+        for _, specRanks in pairs(ns.bisRanks or {}) do
+            local place = specRanks[dataEntry.id]
+            if place == 2 then mark = " · |cffffcf68BiS|r"; break end
+            if place == 1 and mark == "" then mark = " · |cff9baabd" .. (L["BiS 대안: "]:gsub("[:%s]+$", "")) .. "|r" end
+        end
+        rowEntry.src:SetText(CatalogSearchWindow.resolveKindName(dataEntry.rec.classID, dataEntry.rec.subID) .. " · " .. (ns.FormatCompactDropSource and ns:FormatCompactDropSource(dataEntry.rec, dataEntry.id) or "") .. mark)
         rowEntry:Show()
     end
     listChild:SetHeight(math.max(1, math.min(grandTotal, MAX_ROWS) * ROW_H))
@@ -354,11 +383,15 @@ function CatalogSearchWindow.executeCatalogSearchBatch()
     else
         countText:SetText(format(L["%d개"], grandTotal))
     end
-    noteText:SetText(pending > 0 and format(L["%d개 불러오는 중..."], pending) or (grandTotal == 0 and L["검색 결과가 없습니다."] or ""))
+    -- nothing found within a level range: say how to look at every level
+    local emptyText = L["검색 결과가 없습니다."]
+    if (minL or maxL) then emptyText = emptyText .. " " .. L["요구 레벨 칸을 비우면 모든 레벨에서 찾습니다."] end
+    noteText:SetText(pending > 0 and format(L["%d개 불러오는 중..."], pending) or (grandTotal == 0 and emptyText or ""))
     if pending == 0 and ns.indexState == "running" then
         noteText:SetText(L["기존 결과 표시 중 · 신규 아이템 탐색 중..."])
     elseif pending == 0 and unavailable > 0 then
-        noteText:SetText(format(L["%d개는 불러오지 못해 제외했습니다"], unavailable))
+        -- known not to be in this game version (remembered per game build)
+        noteText:SetText(format(L["게임에 없는 아이템 %d개 제외"], unavailable))
     end
     
     if statusBar then

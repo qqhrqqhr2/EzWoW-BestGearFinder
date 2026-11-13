@@ -143,6 +143,67 @@ function MainGearAdvisorWindow.resolveRoleColor(name)
     return 0.945, 0.741, 0.341
 end
 
+-- comparison lines of a recommendation row's item tooltip
+function MainGearAdvisorWindow.addRowLines(tip, row)
+    -- no word wrap here: a wrapped line is cut with "..." once other addons
+    -- resize the rows after the tooltip is laid out
+    tip:AddLine(" ")
+    if row.worn then
+        tip:AddLine(L["지금 착용 중인 장비입니다."], 0.294, 0.784, 0.910)
+        if _G.SlashCmdList and _G.SlashCmdList.EZWOWMAPFINDER then
+            tip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
+        end
+        return
+    end
+    if row.compareNote then
+        tip:AddLine(row.compareNote, 0.8, 0.85, 0.95)
+    end
+    if not row.comparable then
+        -- nothing to compare with
+    elseif row.baseIlvl then
+        tip:AddLine(L["현재 착용 장비 아이템 레벨: "] .. row.baseIlvl, 0.7, 0.7, 0.7)
+    else
+        tip:AddLine(L["현재 이 슬롯: 비어 있음"], 0.7, 0.7, 0.7)
+    end
+    if row.comparable and not row.compareNote and row.weights and row.link and ns.FormatStatComparisonDelta then
+        local okD, txt = pcall(ns.FormatStatComparisonDelta, row.link, row.baseLink, row.weights, 4)
+        if okD and txt and txt ~= "" then
+            -- two changes a line
+            local parts = {}
+            for part in txt:gmatch("[^,]+") do parts[#parts + 1] = (part:gsub("^%s+", "")) end
+            tip:AddLine(format(L["현재 장비 대비: %s"], table.concat(parts, ", ", 1, math.min(2, #parts))), 0.6, 0.8, 1)
+            if #parts > 2 then tip:AddLine("    " .. table.concat(parts, ", ", 3), 0.6, 0.8, 1) end
+        end
+    end
+    if row.score and row.comparable then
+        tip:AddLine(format(L["추정 점수: 이 아이템 %.1f / 착용 중 %.1f"], row.score, row.baseScore or 0), 0.6, 0.9, 0.6)
+        tip:AddLine(L["표시된 %는 추정 점수 변화입니다."], 0.65, 0.72, 0.8)
+    end
+    if _G.SlashCmdList and _G.SlashCmdList.EZWOWMAPFINDER then
+        tip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
+    end
+end
+
+-- Registered on the first row hover (after the other addons' item post-calls,
+-- so the row lines stay at the bottom). Returns true when the post-call is in place.
+local rowPostCall
+function MainGearAdvisorWindow.hookRowLines()
+    if rowPostCall ~= nil then return rowPostCall end
+    rowPostCall = false
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Item then
+        local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Item, function(tip, data)
+            if tip ~= GameTooltip then return end
+            local okOwner, owner = pcall(tip.GetOwner, tip)
+            if not okOwner or type(owner) ~= "table" or not owner.isGearRow or not owner.link then return end
+            local itemID = type(data) == "table" and data.id
+            if itemID and not (issecretvalue and issecretvalue(itemID)) and owner.id and itemID ~= owner.id then return end
+            pcall(MainGearAdvisorWindow.addRowLines, tip, owner)
+        end)
+        rowPostCall = ok and true or false
+    end
+    return rowPostCall
+end
+
 function MainGearAdvisorWindow.buildRow(i)
     local rowEntry = CreateFrame("Button", nil, child)
     rowEntry:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -174,36 +235,15 @@ function MainGearAdvisorWindow.buildRow(i)
     rowEntry.hl = rowEntry:CreateTexture(nil, "HIGHLIGHT")
     rowEntry.hl:SetAllPoints()
     rowEntry.hl:SetColorTexture(1, 1, 1, 0.08)
+    rowEntry.isGearRow = true
     rowEntry:SetScript("OnEnter", function(self)
         if not self.link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        
+        -- the row's lines come from the item tooltip post-call, so they are
+        -- added again whenever the game redraws the tooltip (item data arriving)
+        local viaPostCall = MainGearAdvisorWindow.hookRowLines()
         GameTooltip:SetHyperlink(self.link)
-        
-        GameTooltip:AddLine(" ")
-        if self.compareNote then
-            GameTooltip:AddLine(self.compareNote, 0.8, 0.85, 0.95, true)
-        end
-        if not self.comparable then
-            
-        elseif self.baseIlvl then
-            GameTooltip:AddLine(L["현재 착용 장비 아이템 레벨: "] .. self.baseIlvl, 0.7, 0.7, 0.7)
-        else
-            GameTooltip:AddLine(L["현재 이 슬롯: 비어 있음"], 0.7, 0.7, 0.7)
-        end
-        if self.comparable and not self.compareNote and self.weights and self.link and ns.FormatStatComparisonDelta then
-            local okD, txt = pcall(ns.FormatStatComparisonDelta, self.link, self.baseLink, self.weights, 4)
-            if okD and txt and txt ~= "" then
-                GameTooltip:AddLine(format(L["현재 장비 대비: %s"], txt), 0.6, 0.8, 1, true)
-            end
-        end
-        if self.score and self.comparable then
-            GameTooltip:AddLine(format(L["추정 점수: 이 아이템 %.1f / 착용 중 %.1f"], self.score, self.baseScore or 0), 0.6, 0.9, 0.6)
-            GameTooltip:AddLine(L["표시된 %는 추정 점수 변화입니다."], 0.65, 0.72, 0.8)
-        end
-        if _G.SlashCmdList and _G.SlashCmdList.EZWOWMAPFINDER then
-            GameTooltip:AddLine(L["우클릭: 지도에서 획득처 찾기"], 0.294, 0.784, 0.910)
-        end
+        if not viaPostCall then MainGearAdvisorWindow.addRowLines(GameTooltip, self) end
         GameTooltip:Show()
         ns:ShowRowComparison(GameTooltip)
     end)
@@ -339,7 +379,7 @@ function MainGearAdvisorWindow.assembleFrame()
         for _, stateEntry in ipairs(ns.SORT_STATS or {}) do
             if ns.db.sortStats and ns.db.sortStats[stateEntry.key] then sel[#sel + 1] = L[stateEntry.label] end
         end
-        if #sel == 0 then return ns.db.bisPriority and L["30레벨 BiS 우선"] or L["추천순"] end
+        if #sel == 0 then return L["추천순"] end
         if #sel == 1 then return sel[1] end
         return sel[1] .. " +" .. (#sel - 1)
     end
@@ -350,18 +390,10 @@ function MainGearAdvisorWindow.assembleFrame()
     local syVal = -8
     local defBtn = ns.CreateStyledButton(sortMenu, 180, 20, L["추천순 (기본)"], false, function()
         ns.db.sortStats = {}
-        ns.db.bisPriority = false
         for _, checkWidget in ipairs(sortChecks) do checkWidget:SetChecked(false) end
         sortChanged()
     end)
     defBtn:SetPoint("TOPLEFT", 10, syVal)
-    syVal = syVal - 24
-    local bisBtn = ns.CreateStyledButton(sortMenu, 180, 20, L["30레벨 BiS 우선"], false, function()
-        ns.db.sortStats, ns.db.bisPriority = {}, true
-        for _, checkWidget in ipairs(sortChecks) do checkWidget:SetChecked(false) end
-        sortChanged()
-    end)
-    bisBtn:SetPoint("TOPLEFT", 10, syVal)
     syVal = syVal - 24
     for _, stateEntry in ipairs(ns.SORT_STATS or {}) do
         local checkWidget = CreateFrame("CheckButton", nil, sortMenu, "UICheckButtonTemplate")
@@ -393,6 +425,27 @@ function MainGearAdvisorWindow.assembleFrame()
     attachHoverTooltip(sortBtn, L["정렬"], L["슬롯마다 아이템을 어떤 순서로 보여줄지 고릅니다. 방어도, 초당 공격력, 힘·민첩성·체력·지능 등을 체크하면 그 값이 큰 순서로 나옵니다."])
     containerFrame:HookScript("OnHide", function() sortMenu:Hide() end)
     if ns.UIKit.RegisterPopupMenu then ns.UIKit:RegisterPopupMenu(sortMenu, sortBtn) end
+
+    -- how the score and BiS are worked out (UI/BisCriteria.lua); shown once per session on opening
+    local criteriaBtn = ns.CreateStyledButton(containerFrame, 76, 22, L["BiS 기준"], false, function()
+        sortMenu:Hide()
+        if ns.ToggleBisCriteria then ns:ToggleBisCriteria() end
+    end)
+    criteriaBtn:SetPoint("LEFT", sortBtn, "RIGHT", 6, 0)
+    attachHoverTooltip(criteriaBtn, L["BiS 기준"], L["점수와 BiS를 어떻게 정하는지 봅니다."])
+    -- character-window view: the BiS on the player's model and the stats that change (UI/BisPreview.lua)
+    local tryOnBtn = ns.CreateStyledButton(containerFrame, 76, 22, L["BiS 착용"], true, function()
+        sortMenu:Hide()
+        if ns.ToggleBisPreview then ns:ToggleBisPreview() end
+    end)
+    tryOnBtn:SetPoint("LEFT", criteriaBtn, "RIGHT", 6, 0)
+    attachHoverTooltip(tryOnBtn, L["BiS 착용"], L["캐릭터에 BiS를 입혀 보고 바뀌는 능력치를 봅니다."])
+    containerFrame:HookScript("OnShow", function()
+        if ns.ShowBisCriteriaOnOpen then ns:ShowBisCriteriaOnOpen() end
+    end)
+    containerFrame:HookScript("OnHide", function()
+        if ns.HideBisCriteria then ns:HideBisCriteria() end
+    end)
 
     local cfgBtn = ns.CreateStyledButton(containerFrame, 76, 20, (SETTINGS or "설정"), false, function() ns:ToggleSettingsWindow() end)
     cfgBtn:SetPoint("TOPRIGHT", -18, -36)
@@ -680,7 +733,10 @@ function ns:UpdateUI()
     local function isElementCurrentlyVisible(list)
         if not list or not self.db.upgradeOnly or (ns.searchText or "") ~= "" then return list end
         local outputList = {}
-        for _, recordEntry in ipairs(list) do if recordEntry.upgrade or not recordEntry.comparable then outputList[#outputList + 1] = recordEntry end end
+        -- the BiS and the item worn now stay listed with "upgrades only" too
+        for _, recordEntry in ipairs(list) do
+            if recordEntry.upgrade or not recordEntry.comparable or recordEntry.bis == 2 or recordEntry.worn then outputList[#outputList + 1] = recordEntry end
+        end
         return #outputList > 0 and outputList or nil
     end
     local plotBands = {}
@@ -720,19 +776,31 @@ function ns:UpdateUI()
                     rowEntry.id = recordEntry.id
                     rowEntry.baseLink, rowEntry.weights = recordEntry.baseLink, recordEntry.weights
                     rowEntry.comparable, rowEntry.compareNote = recordEntry.comparable, recordEntry.compareNote
+                    rowEntry.worn, rowEntry.rank = recordEntry.worn, recordEntry.rank
                     rowEntry.icon:SetTexture(recordEntry.rec.icon)
                     local quality = (ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[recordEntry.quality]) or { r = 0.5, g = 0.6, b = 0.7 }
                     rowEntry.accent:SetColorTexture(quality.r, quality.g, quality.b, 0.85)
-                    rowEntry.bg:SetColorTexture(recordEntry.upgrade and 0.095 or 0.114, recordEntry.upgrade and 0.185 or 0.157, recordEntry.upgrade and 0.175 or 0.192, 0.95)
+                    -- green: better than what is worn; blue: the item worn now
+                    if recordEntry.worn then
+                        rowEntry.bg:SetColorTexture(0.075, 0.150, 0.210, 0.95)
+                    else
+                        rowEntry.bg:SetColorTexture(recordEntry.upgrade and 0.095 or 0.114, recordEntry.upgrade and 0.185 or 0.157, recordEntry.upgrade and 0.175 or 0.192, 0.95)
+                    end
                     rowEntry.name:SetText(recordEntry.link)
                     local comparison
-                    if not recordEntry.comparable then comparison = "|cff8ba9c4" .. (recordEntry.compareNote or L["참고 장비"]) .. "|r"
+                    if recordEntry.worn then comparison = "|cff4bc8e8" .. L["착용 중"] .. "|r"
+                    elseif not recordEntry.comparable then comparison = "|cff8ba9c4" .. (recordEntry.compareNote or L["참고 장비"]) .. "|r"
                     elseif (recordEntry.baseScore or 0) <= 0 then comparison = "|cff68d9a4" .. L["빈 슬롯"] .. "|r"
                     else
                         local delta = (recordEntry.score - recordEntry.baseScore) / recordEntry.baseScore * 100
-                        comparison = (recordEntry.upgrade and "|cff68d9a4▲ " or "|cff9baabd") .. format("%+.1f%%", delta) .. "|r"
+                        -- a worn item with almost nothing this role uses gives thousands of percent: shown as "+300% or more"
+                        local deltaText = delta > 300 and L["+300% 이상"] or format("%+.1f%%", delta)
+                        comparison = (recordEntry.upgrade and "|cff68d9a4▲ " or "|cff9baabd") .. deltaText .. "|r"
                     end
-                    local badge = recordEntry.bis == 2 and " |cffffcf68BiS|r" or (recordEntry.bis == 1 and " |cff9baabdBiS*|r" or "")
+                    -- place in the slot: BiS, then 2nd, 3rd ... (the alternatives)
+                    local badge = ""
+                    if recordEntry.bis == 2 then badge = " |cffffcf68BiS|r"
+                    elseif recordEntry.rank then badge = " |cff9baabd" .. format(L["%d위"], recordEntry.rank) .. "|r" end
                     rowEntry.sub:SetText(comparison .. " · " .. (recordEntry.sortVal and format(L["정렬 %.1f"], recordEntry.sortVal) or format(L["점수 %.1f"], recordEntry.score)) .. badge)
                     local req = (recordEntry.req or 0) > 0 and format(L["요구 %d"], recordEntry.req) or L["요구 없음"]
                     rowEntry.source:SetText(req .. " · " .. self:FormatCompactDropSource(recordEntry.rec, recordEntry.id))

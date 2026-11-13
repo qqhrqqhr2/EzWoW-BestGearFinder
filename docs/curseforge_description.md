@@ -13,15 +13,19 @@ Finds the **best gear you can wear right now** for your class and level, slot by
 
 ![Settings window](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/settings_en.png)
 
-*Mock-ups rebuilt from the window sizes, coordinates, colours and strings in the addon code. Item names, scores and sources are made up.*
+![BiS try-on (in-game, Korean client)](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/tryon_ko.png)
+
+*In-game screenshots (WoW Forever, Korean client). Character and player names and chat text are blurred.*
 
 ## Features
 
 ### Gear window (`/ezbg`)
 - One column per spec (for example Retribution / Holy / Protection), one block per slot; click a slot header to fold it in every column.
-- Sort by recommendation (role stat weights), level-30 BiS first, or by the sum of chosen stats (armor, DPS, Strength, Agility, Stamina, Intellect, Spirit).
+- Sort by recommendation (score from per-spec stat worth) or by the sum of chosen stats (armor, DPS, Strength, Agility, Stamina, Intellect, Spirit).
+- The score uses each spec's level-60 stat worth, scaled to your level and your attack / spell power; hit, expertise and defense count fully only up to their caps. The "BiS criteria" button shows the worth of every stat and your hit against the cap.
+- **Try on BiS** (`/ezbg bis`): a character-window view with the BiS of every slot on your character's model, the stat and score changes against your current gear, and #2, #3… or your current item to pick per slot.
 - Required-level range you can type, or "Auto" (your level - 10 up to your level) that follows you as you level.
-- Green rows and ▲ mark upgrades; `BiS` / `BiS*` mark the level-30 BiS list; the third line shows the required level and source.
+- Green rows and ▲ mark upgrades; `BiS` marks the top score in the current range (always listed, `Equipped` when you wear it) and `#2`, `#3`… the alternatives better than your gear; the third line shows the required level and source.
 - Hover a row for the comparison with your equipped item and the estimated score. Right-click to find the source on the map (with EzWoW - Map Finder), Shift+click to link, Ctrl+click to preview.
 - Preview other classes from the "My character" menu (the class being shown is marked). Drop-down menus close when you click anywhere else.
 - Drag the bottom-right corner to change the window height; the background opacity is set in the settings.
@@ -73,15 +77,19 @@ Languages: English, 한국어, Deutsch, Français, Español, Русский, 简
 
 ![설정창](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/settings_ko.png)
 
-*애드온 코드의 창 크기 · 좌표 · 색상 · 문구로 재현한 예시 화면입니다. 아이템 이름 · 점수 · 획득처는 지어낸 예시입니다.*
+![BiS 착용 보기 (실제 게임 화면)](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/tryon_ko.png)
+
+*실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.*
 
 ## 기능
 
 ### 추천 장비 창 (`/ezbg`)
 - 특성별 열(예: 징벌 / 신성 / 보호), 부위별 묶음. 부위 제목을 누르면 모든 열에서 접고 펼칩니다.
-- 추천순(역할별 스탯 가중치), 30레벨 BiS 우선, 또는 고른 스탯(방어도 · 초당 공격력 · 힘 · 민첩성 · 체력 · 지능 · 정신력)의 합계 순으로 정렬.
+- 추천순(특성별 능력치 가치로 매긴 점수) 또는 고른 스탯(방어도 · 초당 공격력 · 힘 · 민첩성 · 체력 · 지능 · 정신력)의 합계 순으로 정렬.
+- 점수는 특성별 60레벨 기준 능력치 가치를 내 레벨과 전투력·주문력에 맞춰 계산하고, 적중 · 숙련 · 방어 숙련은 상한까지만 높게 칩니다. "BiS 기준" 단추로 능력치별 가치와 지금 적중·상한을 볼 수 있습니다.
+- **BiS 착용** (`/ezbg bis`): 캐릭터 창 모양으로 부위마다 BiS를 내 캐릭터 모델에 입혀 보고, 지금 장비와 비교한 능력치·점수 변화를 봅니다. 부위마다 2위 · 3위…나 지금 장비로 바꿔 볼 수 있습니다.
 - 요구 레벨 범위를 직접 입력하거나 "자동"(내 레벨-10 ~ 내 레벨)으로 두면 레벨이 오를 때 같이 바뀝니다.
-- 녹색 행과 ▲는 업그레이드, `BiS` / `BiS*`는 30레벨 BiS 목록, 셋째 줄은 요구 레벨과 획득처.
+- 녹색 행과 ▲는 업그레이드, `BiS`는 지금 범위에서 점수 1위(늘 보이고, 끼고 있으면 `착용 중`), `2위` · `3위`…는 지금 장비보다 좋은 대체품, 셋째 줄은 요구 레벨과 획득처.
 - 행에 마우스를 올리면 착용 장비와의 비교와 추정 점수. 우클릭: 지도에서 획득처 찾기(EzWoW - Map Finder), Shift+클릭: 링크, Ctrl+클릭: 미리보기.
 - "내 캐릭터" 메뉴에서 다른 직업도 미리 볼 수 있습니다(지금 보고 있는 직업이 표시됨). 펼침 메뉴는 바깥을 누르면 닫힙니다.
 - 오른쪽 아래 모서리를 끌어 창 높이를 바꾸고, 배경 불투명도는 설정창에서 정합니다.

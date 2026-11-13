@@ -10,7 +10,7 @@ local L = ns.L
 _G.EzWoW_BestGearFinder = ns
 _G.EzWoW_BestGearFinder = ns
 
-local DEFAULTS = { bisPriority = false, perSlot = 2, upgradeOnly = true, range = {}, qual = { [2] = true, [3] = true, [4] = true }, allModules = false, crafting = true, quests = true, minChance = 1, auction = true, newItems = true, iconShown = true, scan = {}, mobCut = true, classFilter = true, sourcedOnly = false, collapsed = {}, spec = {}, itemTooltip = true, showEquipCompare = true, learn = true, learnNotify = true }
+local DEFAULTS = { perSlot = 3, upgradeOnly = true, range = {}, qual = { [2] = true, [3] = true, [4] = true }, allModules = false, crafting = true, quests = true, minChance = 1, auction = true, newItems = true, iconShown = true, scan = {}, mobCut = true, classFilter = true, sourcedOnly = false, collapsed = {}, spec = {}, itemTooltip = true, showEquipCompare = true, learn = true, learnNotify = true }
 
 ns.index = {}          
 ns.indexState = "idle" 
@@ -76,6 +76,8 @@ function GearScoringEngine.bootstrapDB()
         end
     end
     if type(savedDB.perSlot) ~= "number" or savedDB.perSlot < 2 then savedDB.perSlot = 2 elseif savedDB.perSlot > 10 then savedDB.perSlot = 10 end
+    savedDB.bisPriority = nil   -- old "level 30 BiS first" sort; BiS now comes from the score
+    GearScoringEngine.loadMissing()
     ns.db = savedDB
     if ns.SetLang then ns.SetLang(savedDB.lang) end
     if ns.RelabelData then ns.RelabelData() end
@@ -147,6 +149,7 @@ end
 
 function GearScoringEngine.addSource(rec, inst, boss, minLvl, kind, skill, extra)
     rec.kinds[kind] = true
+    rec.searchText = nil   -- the names a search looks at change (ns:SourceSearchText)
     extra = extra or {}
     for _, stateFlag in ipairs(rec.src) do
         if stateFlag.kind == kind then
@@ -241,7 +244,8 @@ function GearScoringEngine.inspectNewItems()
     local knVal = dungeonCatalog and dungeonCatalog.known
     if type(knVal) ~= "table" or #knVal == 0 then return end   
     local stateEntry = ns.indexStats
-    local build = select(4, GetBuildInfo()) or 0
+    -- the game build ("1.60.1.70790"): a new build may add items, so the scan runs again
+    local build = GearScoringEngine.currentBuild()
     local lookupCache = savedDB.scan
     local ids
     if type(lookupCache) == "table" and lookupCache.build == build and lookupCache.max == SCAN_MAX and lookupCache.ver == dungeonCatalog.version and type(lookupCache.ids) == "table" then
@@ -328,6 +332,137 @@ function ns:LearnSource(id, kind, e)
     return true
 end
 
+-- Drops and shops other EzWoW users (and this character) saw in the game,
+-- from the shared records (Libs/EzWoWShare) and the ones shipped with
+-- EzWoW - Map Finder: { drops = { [itemID] = { {inst, boss, npc} } },
+-- vendors = { [itemID] = { {zone, boss, npc} } } } in the learned format.
+-- Sources without a known name are left out; the zone comes from the map data.
+function GearScoringEngine.sharedSources()
+    local share = _G.EzWoW_Share
+    if type(share) ~= "table" or type(share.Data) ~= "function" then return nil end
+    local okData, data = pcall(share.Data)
+    if not okData or type(data) ~= "table" then return nil end
+    local seed = type(share.Seed) == "function" and share.Seed or function() return nil end
+
+    local zoneCache = {}
+    local spawnByNpc, instByCreature
+    local function zoneOf(npcID)
+        if zoneCache[npcID] ~= nil then return zoneCache[npcID] or nil end
+        if not spawnByNpc then
+            spawnByNpc = {}
+            for _, e in ipairs(_G.EzWoWMapFinderData or {}) do
+                if type(e) == "table" and e.kind == "npc" and type(e.id) == "number" and not spawnByNpc[e.id]
+                    and type(e.spawns) == "table" and type(e.spawns[1]) == "table" then
+                    spawnByNpc[e.id] = e.spawns[1]
+                end
+            end
+        end
+        local sp = spawnByNpc[npcID]
+        local name
+        if sp and C_Map and C_Map.GetMapPosFromWorldPos and C_Map.GetMapInfo and CreateVector2D then
+            local ok, mapID = pcall(C_Map.GetMapPosFromWorldPos, sp[1], CreateVector2D(sp[2], sp[3]))
+            if ok and type(mapID) == "number" then
+                local okInfo, info = pcall(C_Map.GetMapInfo, mapID)
+                if okInfo and type(info) == "table" and type(info.name) == "string" then name = info.name end
+            end
+        end
+        -- inside dungeons there is no map position: the dungeon from the map
+        -- data (its spots are on the dungeon's map), from where EzWoW users
+        -- looted it, else the one the gear data lists it in
+        local function dungeonName(mapID)
+            if type(mapID) ~= "number" or type(GetRealZoneText) ~= "function" then return nil end
+            local okZone, zone = pcall(GetRealZoneText, mapID)
+            return okZone and type(zone) == "string" and zone ~= "" and zone or nil
+        end
+        if not name and sp and type(sp[1]) == "number" and sp[1] > 1 and sp[1] ~= 530 then
+            name = dungeonName(sp[1])
+        end
+        if not name and type(share.InstanceOf) == "function" then
+            local okInst, instanceMap = pcall(share.InstanceOf, npcID)
+            if okInst then name = dungeonName(instanceMap) end
+        end
+        if not name then
+            if not instByCreature then
+                instByCreature = {}
+                local db = ns.GearDB
+                for _, list in pairs(db and type(db.sources) == "table" and db.sources or {}) do
+                    if type(list) == "table" then
+                        for _, e in ipairs(list) do
+                            if type(e) == "table" and type(e.creature) == "number" and type(e.inst) == "string"
+                                and not instByCreature[e.creature] then
+                                instByCreature[e.creature] = e.inst
+                            end
+                        end
+                    end
+                end
+            end
+            name = instByCreature[npcID]
+        end
+        zoneCache[npcID] = name or false
+        return name
+    end
+    local function nameOf(npcID)
+        if type(share.SourceName) ~= "function" then return nil end
+        local ok, n = pcall(share.SourceName, "n" .. npcID)
+        return ok and type(n) == "string" and n ~= "" and n or nil
+    end
+
+    local out = { drops = {}, vendors = {} }
+    local seenPair = {}
+    local function add(kind, itemID, npcID)
+        if type(itemID) ~= "number" or type(npcID) ~= "number" then return end
+        -- gear only (the rest is not looked at here)
+        local okInfo, _, _, _, equipLoc = pcall(resolveItemInfoInstantC, itemID)
+        if not (okInfo and equipLoc and ns.EQUIP_LOCS and ns.EQUIP_LOCS[equipLoc]) then return end
+        local key = kind .. itemID .. ":" .. npcID
+        if seenPair[key] then return end
+        seenPair[key] = true
+        local name = nameOf(npcID)
+        if not name then return end
+        local zone = zoneOf(npcID) or ""
+        local list = out[kind][itemID]
+        if not list then
+            list = {}
+            out[kind][itemID] = list
+        end
+        if kind == "drops" then
+            list[#list + 1] = { inst = zone, boss = name, npc = npcID }
+        else
+            list[#list + 1] = { zone = zone, boss = name, npc = npcID }
+        end
+    end
+    local function npcOf(src)
+        return type(src) == "string" and src:sub(1, 1) == "n" and tonumber(src:sub(2)) or nil
+    end
+    for src, items in pairs(type(data.drops) == "table" and data.drops or {}) do
+        local npcID = npcOf(src)
+        if npcID and type(items) == "table" then
+            for itemID in pairs(items) do add("drops", itemID, npcID) end
+        end
+    end
+    for src, items in pairs(seed("drops") or {}) do
+        local npcID = npcOf(src)
+        if npcID and type(items) == "table" then
+            for _, itemID in ipairs(items) do add("drops", itemID, npcID) end
+        end
+    end
+    local shops = type(share.Store) == "function" and share.Store("M") or {}
+    for npcID, row in pairs(type(shops) == "table" and shops or {}) do
+        if type(npcID) == "number" and type(row) == "table" then
+            for _, itemID in ipairs(type(row.own) == "table" and row.own or {}) do add("vendors", itemID, npcID) end
+            for itemID, ok in pairs(type(row.got) == "table" and row.got or {}) do
+                if ok == true then add("vendors", itemID, npcID) end
+            end
+        end
+    end
+    for npcID, items in pairs(seed("vendors") or {}) do
+        if type(npcID) == "number" and type(items) == "table" then
+            for _, itemID in ipairs(items) do add("vendors", itemID, npcID) end
+        end
+    end
+    return out
+end
+
 function GearScoringEngine.indexForeverExtra()
     local qcbit = CLASS_BIT[ns:GetActiveClassToken()]
     local raceID = select(3, UnitRace("player"))
@@ -373,8 +508,10 @@ function GearScoringEngine.indexForeverExtra()
     end
     local myFaction = (UnitFactionGroup and UnitFactionGroup("player") or ""):lower()   
     local function resolveSideOK(e) return not e.side or e.side == "both" or e.side == myFaction end
-    for _, coordinateHelper in ipairs({ ns.CraftData, ns.ForeverExtra, ns.DungeonData, ns.WorldData, ns.ItemSources, savedDB and savedDB.learned }) do
-        local learned = (savedDB and coordinateHelper == savedDB.learned) or nil   
+    local okShared, shared = pcall(GearScoringEngine.sharedSources)
+    shared = okShared and shared or nil
+    for _, coordinateHelper in ipairs({ ns.CraftData, ns.ForeverExtra, ns.DungeonData, ns.WorldData, ns.ItemSources, savedDB and savedDB.learned, shared or false }) do
+        local learned = ((savedDB and coordinateHelper == savedDB.learned) or (shared and coordinateHelper == shared)) or nil   
         skipKnown = learned and true or false             
         
         local onlyNew = (coordinateHelper == ns.WorldData or coordinateHelper == ns.ItemSources)
@@ -574,6 +711,28 @@ function GearScoringEngine.assembleEffectPatterns()
         if #pats > 0 then effectPatterns[queryToken] = pats end
     end
 end
+-- lines that are not the item's own stats: use effects, chance on hit, set bonuses
+local skipLinePatterns
+function GearScoringEngine.assembleSkipPatterns()
+    skipLinePatterns = {}
+    for _, globalName in ipairs({ "ITEM_SPELL_TRIGGER_ONUSE", "ITEM_SPELL_TRIGGER_ONPROC", "ITEM_SET_BONUS", "ITEM_SET_BONUS_GRAY" }) do
+        local text = _G[globalName]
+        if type(text) == "string" and text ~= "" then
+            local head = text:match("^(.-)%%s") or text
+            head = GearScoringEngine.escapeLuaPatternChars(head):gsub("%%%%d", "%%d+")
+            if head ~= "" then skipLinePatterns[#skipLinePatterns + 1] = "^" .. head end
+        end
+    end
+end
+-- equip lines that state a percent (hit / crit / expertise), read as the rating the game counts for it;
+-- lines without cr give the number itself (spell penetration)
+local PERCENT_LINES = {
+    { key = "ITEM_MOD_HIT_RATING_SHORT", cr = 6, pats = { "적중률이 ([%d%.]+)%%", "chance to hit with spells by ([%d%.]+)%%", "chance to hit by ([%d%.]+)%%" } },
+    { key = "ITEM_MOD_CRIT_RATING_SHORT", cr = 9, pats = { "극대화율이 ([%d%.]+)%%", "치명타율이 ([%d%.]+)%%",
+        "critical strike with spells by ([%d%.]+)%%", "critical strike by ([%d%.]+)%%" } },
+    { key = "ITEM_MOD_EXPERTISE_RATING_SHORT", cr = 24, pats = { "막힐 확률이 ([%d%.]+)%%", "dodged or parried by ([%d%.]+)%%" } },
+    { key = "ITEM_MOD_SPELL_PENETRATION_SHORT", pats = { "저항력을 (%d+)만큼 관통", "resistances of your spell targets by (%d+)" } },
+}
 local tooltipStatsByID = {}
 function GearScoringEngine.tooltipStats(id)
     if not id then return nil end
@@ -582,17 +741,34 @@ function GearScoringEngine.tooltipStats(id)
     local isCallOk, payloadData = pcall(C_TooltipInfo.GetItemByID, id)
     if not isCallOk or type(payloadData) ~= "table" or type(payloadData.lines) ~= "table" or #payloadData.lines == 0 then return nil end
     if not effectPatterns then GearScoringEngine.assembleEffectPatterns() end
+    if not skipLinePatterns then GearScoringEngine.assembleSkipPatterns() end
     local outputList = {}
     for _, lnVal in ipairs(payloadData.lines) do
         local resolvedValue = lnVal.leftText
-        if type(resolvedValue) == "string" and resolvedValue ~= "" and resolvedValue:find("%d") then
+        if type(resolvedValue) == "string" and not (issecretvalue and issecretvalue(resolvedValue)) and resolvedValue ~= "" and resolvedValue:find("%d") then
             resolvedValue = resolvedValue:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-            for queryToken, pats in pairs(effectPatterns) do
-                for _, anchorTarget in ipairs(pats) do
-                    local entryValue = tonumber(resolvedValue:match(anchorTarget))
-                    if entryValue then
-                        if (outputList[queryToken] or 0) < entryValue then outputList[queryToken] = entryValue end
-                        break
+            local skipLine = false
+            for _, skipPat in ipairs(skipLinePatterns) do
+                if resolvedValue:find(skipPat) then skipLine = true; break end
+            end
+            if not skipLine then
+                for queryToken, pats in pairs(effectPatterns) do
+                    for _, anchorTarget in ipairs(pats) do
+                        local entryValue = tonumber(resolvedValue:match(anchorTarget))
+                        if entryValue then
+                            if (outputList[queryToken] or 0) < entryValue then outputList[queryToken] = entryValue end
+                            break
+                        end
+                    end
+                end
+                for _, pctLine in ipairs(PERCENT_LINES) do
+                    for _, anchorTarget in ipairs(pctLine.pats) do
+                        local pct = tonumber(resolvedValue:match(anchorTarget))
+                        if pct then
+                            local rating = pctLine.cr and math.floor(pct / ns.StatWeights.PerRating(pctLine.cr) + 0.5) or pct
+                            if (outputList[pctLine.key] or 0) < rating then outputList[pctLine.key] = rating end
+                            break
+                        end
                     end
                 end
             end
@@ -636,15 +812,16 @@ function GearScoringEngine.resolveStats(link)
 end
 ns.GetStats = GearScoringEngine.resolveStats
 
+-- relics (idol, libram, totem) work through effects the score can't read: they count by item level
+local RELIC_ILVL_WEIGHT = 0.15
+
+-- weights come from ns.StatWeights.For (Core/StatWeights.lua): plain stats by weight, hit / expertise / defense up to their caps
 function GearScoringEngine.evaluateItemRoleScore(link, ilvl, weights)
     local scVal = (ilvl or 0) * ns.ILVL_WEIGHT
     local stats, complete = GearScoringEngine.resolveStats(link)
-    if stats then
-        for entryKey, entryValue in pairs(stats) do
-            local matchRef = weights[entryKey]
-            if matchRef then scVal = scVal + entryValue * matchRef end
-        end
-    end
+    if stats then scVal = scVal + ns.StatWeights.Score(stats, weights) end
+    local okLoc, _, _, _, equipLoc = pcall(resolveItemInfoInstantC, link)
+    if okLoc and equipLoc == "INVTYPE_RELIC" then scVal = scVal + (ilvl or 0) * RELIC_ILVL_WEIGHT end
     return scVal, complete
 end
 
@@ -657,7 +834,9 @@ function GearScoringEngine.invalidateItemCaches(id)
     allowCache[id] = nil
     local rec = ns.index and ns.index[id]
     if type(rec) == "table" then rec.junk = nil end
-    for _, scores in pairs(scoreCache) do scores[id] = nil end
+    for _, groups in pairs(scoreCache) do
+        for _, cache in pairs(groups) do cache.s[id] = nil end
+    end
 end
 
 function GearScoringEngine.hasClassAllowed(id)
@@ -823,6 +1002,37 @@ end
 
 local hasCached = C_Item and C_Item.IsItemDataCachedByID
 
+-- Items that aren't in this game version (the server says so, or doesn't answer three requests)
+-- are remembered, so later windows and searches don't wait for them again. The list belongs to one
+-- game build and is dropped when the build changes or after a week (items the server adds without
+-- a new build); an item leaves it as soon as the game has its data (seen in a bag, link, tooltip...).
+local MISSING_KEEP = 7 * 24 * 3600
+function GearScoringEngine.currentBuild()
+    local version, buildNum = GetBuildInfo()
+    return tostring(version or "") .. "." .. tostring(buildNum or "")
+end
+function GearScoringEngine.loadMissing()
+    if not savedDB then return end
+    local build, now = GearScoringEngine.currentBuild(), time()
+    local missing = savedDB.missing
+    if type(missing) ~= "table" or missing.build ~= build or type(missing.ids) ~= "table"
+        or type(missing.t) ~= "number" or now - missing.t > MISSING_KEEP then
+        missing = { build = build, t = now, ids = {} }
+        savedDB.missing = missing
+    end
+    for id in pairs(missing.ids) do dead[id] = true end
+end
+function GearScoringEngine.markMissing(id)
+    dead[id] = true
+    local missing = savedDB and savedDB.missing
+    if type(missing) == "table" and type(missing.ids) == "table" then missing.ids[id] = true end
+end
+function GearScoringEngine.unmarkMissing(id)
+    dead[id] = nil
+    local missing = savedDB and savedDB.missing
+    if type(missing) == "table" and type(missing.ids) == "table" then missing.ids[id] = nil end
+end
+
 local requestUncachedItemData
 function requestUncachedItemData(id, prio)
     if dead[id] then return false end
@@ -830,7 +1040,7 @@ function requestUncachedItemData(id, prio)
     if queued[id] then GearScoringEngine.enqueue(id, tier); return true end
     local resolvedValue = requested[id]
     if resolvedValue and GetTime() - resolvedValue < 10 then return true end
-    if (attempts[id] or 0) >= 3 then dead[id] = true; return false end
+    if (attempts[id] or 0) >= 3 then GearScoringEngine.markMissing(id); return false end
     GearScoringEngine.enqueue(id, tier)
     return true
 end
@@ -840,7 +1050,7 @@ function ns:RequestItem(id)
     if queued[id] then GearScoringEngine.enqueue(id, 1); return true end
     local resolvedValue = requested[id]
     if resolvedValue and GetTime() - resolvedValue < 10 then return true end
-    if (attempts[id] or 0) >= 3 then dead[id] = true; return false end
+    if (attempts[id] or 0) >= 3 then GearScoringEngine.markMissing(id); return false end
     GearScoringEngine.enqueue(id, 1)
     return true
 end
@@ -864,6 +1074,8 @@ function ns:GetCachedItemInfo(id)
         rec.name, rec.link, rec.quality, rec.ilvl, rec.req = name, link, quality, ilvl or 0, req or 0
         if iconTex then rec.icon = iconTex end
     end
+    -- the game has the item after all: it is in this version
+    if name and dead[id] then GearScoringEngine.unmarkMissing(id) end
     return name, link, quality, ilvl, req, alphaVal, buttonWidget, themeColor, localeTbl, iconTex
 end
 ns.GetItemInfoC = resolveItemInfoC
@@ -875,7 +1087,10 @@ function GearScoringEngine.inRange(req, minReq, maxReq, ilvl, isBis)
     return lvVal <= maxReq + 10 and lvVal >= maxReq - 2   
 end
 
-local bisCache = {}
+local bisRanks = {}   -- [spec index][item id] = 2 (BiS) / 1 (alternative)
+local rankedLists = {} -- [spec index][slot group] = the first places { id, link, score, rank, worn, ... }
+local RANK_KEEP = 6
+ns.rankedLists = rankedLists
 
 function ns:IsItemUsableByActiveClass(rec, id)
     local rules = ns.CLASS_RULES[ns:GetActiveClassToken()]
@@ -892,46 +1107,39 @@ function ns:SetViewClass(classToken)
     if classToken == mine then classToken = nil end
     ns.viewClass = classToken
     wipe(allowCache)
-    wipe(bisCache)
+    wipe(bisRanks)
+    wipe(rankedLists)
     scoreCache = {}
+    ns.StatWeights.Reset()
     self:ResetIndex()
 end
 
-function GearScoringEngine.resolveBisLookup(si)
-    local themeColor = bisCache[si]
-    if themeColor then return themeColor end
-    themeColor = { top = {}, alt = {} }
-    local class = ns:GetActiveClassToken()
-    local payloadData = ns.BiS and ns.BiS[class]
-    local names = ns.BIS_MAP and ns.BIS_MAP[class] and ns.BIS_MAP[class][si]
-    if payloadData and names then
-        local side = (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or "A"
-        for _, nmVal in ipairs(names) do
-            local resolvedValue = payloadData[nmVal] and (payloadData[nmVal][side] or payloadData[nmVal].A or payloadData[nmVal].H)
-            if resolvedValue then
-                for _, id in ipairs(resolvedValue.top) do themeColor.top[id] = true end
-                for _, id in ipairs(resolvedValue.alt) do themeColor.alt[id] = true end
-            end
-        end
-    end
-    bisCache[si] = themeColor
-    return themeColor
+-- BiS marks for item tooltips while the window is closed: the slots are weighed in the
+-- background now and then (the open window keeps them up to date itself)
+local lastRankRun = 0
+function ns:MaybeRankBis()
+    if self.frame and self.frame:IsShown() then return end
+    if self.indexState ~= "done" or not savedDB then return end
+    if InCombatLockdown and InCombatLockdown() then return end
+    local now = GetTime()
+    if now - lastRankRun < 30 then return end
+    lastRankRun = now
+    C_Timer.After(0, function()
+        if InCombatLockdown and InCombatLockdown() then return end
+        pcall(ns.EvaluateAllSlotCandidates, ns)
+    end)
 end
+
+-- BiS = the highest score in a slot among the items the window weighs (level range and
+-- sources chosen in the settings); the next two are alternatives. Set by EvaluateAllSlotCandidates.
 function ns:IsBestInSlotCandidate(id)
-    local lo, hi = self:GetLevelFilterRange()
-    if lo > 30 or hi < 30 then return false end
-    for si = 1, #self:GetSpecList() do
-        local themeColor = GearScoringEngine.resolveBisLookup(si)
-        if themeColor.top[id] or themeColor.alt[id] then return true end
-    end
     return false
 end
 function ns:GetBestInSlotRank(si, id)
-    local lo, hi = self:GetLevelFilterRange()
-    if lo > 30 or hi < 30 then return 0 end
-    local themeColor = GearScoringEngine.resolveBisLookup(si)
-    return themeColor.top[id] and 2 or (themeColor.alt[id] and 1 or 0)
+    local ranks = bisRanks[si]
+    return ranks and ranks[id] or 0
 end
+ns.bisRanks = bisRanks
 
 function ns:EvaluateAllSlotCandidates()
     local class = ns:GetActiveClassToken()
@@ -1019,15 +1227,29 @@ function ns:EvaluateAllSlotCandidates()
     self.funnel = {}
     local views = {}
     self.slotError = nil
+    wipe(bisRanks)
+    wipe(rankedLists)
     for si, spec in ipairs(specs) do
-        local weights = spec.w
         scoreCache[si] = scoreCache[si] or {}
-        local scVal = scoreCache[si]
+        local specCache = scoreCache[si]
+        local ranks = {}
+        bisRanks[si] = ranks
+        local specRanked = {}
+        rankedLists[si] = specRanked
         local picks = {}
         for _, greenVal in ipairs(ns.GROUPS) do
             local okSlot, errSlot = pcall(function()
+                -- weights for this slot (weapon hand, hit of the item worn here);
+                -- the scores are kept while the weights stay the same
+                local weights = ns.StatWeights.For(si, spec, greenVal)
+                local cache = specCache[greenVal.key]
+                if not cache or cache.w ~= weights then
+                    cache = { w = weights, s = {} }
+                    specCache[greenVal.key] = cache
+                end
+                local scVal = cache.s
                 local itemList = {}
-                
+
                 local sortTokens   
                 if savedDB.sortStats and next(savedDB.sortStats) then
                     sortTokens = {}
@@ -1054,13 +1276,10 @@ function ns:EvaluateAllSlotCandidates()
                             end
                         end
                     end
-                    itemList[#itemList + 1] = { e = e, score = score, bis = ns:GetBestInSlotRank(si, e.id), sv = svVal }
+                    itemList[#itemList + 1] = { e = e, score = score, bis = 0, sv = svVal }
                 end
                 table.sort(itemList, function(alphaVal, buttonWidget)
-                    if sortTokens and alphaVal.sv ~= buttonWidget.sv then return alphaVal.sv > buttonWidget.sv end
-                    if savedDB.bisPriority and alphaVal.bis ~= buttonWidget.bis then return alphaVal.bis > buttonWidget.bis end
                     if alphaVal.score ~= buttonWidget.score then return alphaVal.score > buttonWidget.score end
-                    if alphaVal.bis ~= buttonWidget.bis then return alphaVal.bis > buttonWidget.bis end
                     return alphaVal.e.id < buttonWidget.e.id
                 end)
                 local base, baseLink, baseReady = GearScoringEngine.computeEquippedSlotScore(greenVal, weights)
@@ -1070,7 +1289,8 @@ function ns:EvaluateAllSlotCandidates()
                     if offLink then
                         local name, _, _, ilvl = resolveItemInfoC(offLink)
                         if name then
-                            local offScore, offReady = GearScoringEngine.evaluateItemRoleScore(offLink, ilvl, weights)
+                            -- the off hand's weapon DPS counts at the off-hand worth
+                            local offScore, offReady = GearScoringEngine.evaluateItemRoleScore(offLink, ilvl, ns.StatWeights.For(si, spec, greenVal, "OFF"))
                             base = base + offScore
                             baseReady = baseReady and offReady
                         else baseReady = false end
@@ -1097,23 +1317,108 @@ function ns:EvaluateAllSlotCandidates()
                 if priorityQueue == "" then priorityQueue = nil end
                 local function doesCandidateMatchFilter(e)
                     if string.find(string.lower(e.name or ""), priorityQueue, 1, true) then return true end
-                    for _, stateFlag in ipairs(e.rec.src) do
-                        if string.find(string.lower((stateFlag.boss or "") .. " " .. (stateFlag.inst or "")), priorityQueue, 1, true) then return true end
-                    end
-                    return false
+                    return string.find(ns:SourceSearchText(e.rec), priorityQueue, 1, true) ~= nil
                 end
-                for _, boxWidth in ipairs(itemList) do
+                -- an empty slot: anything with a score fills it
+                local emptySlot = (base or 0) <= 0 and not baseLink
+                local function isUpgrade(boxWidth)
                     -- an item already worn in this group (e.g. the better ring/trinket) is never an upgrade over the other slot
-                    local hasUpgrade = comparable and not worn[boxWidth.e.id] and boxWidth.score > base * (1 + ns.UPGRADE_MARGIN_PCT) + ns.UPGRADE_MARGIN_ABS
-                    if priorityQueue and not doesCandidateMatchFilter(boxWidth.e) then
-                        
-                    elseif (priorityQueue or presentReference or not savedDB.upgradeOnly or hasUpgrade) and (priorityQueue or not (boxWidth.bis == 2 and worn[boxWidth.e.id])) then
-                        local e = boxWidth.e
-                        if not savedDB.classFilter or GearScoringEngine.hasClassAllowed(e.id) ~= false then
-                            picked[#picked + 1] = { id = e.id, link = e.link, ilvl = e.ilvl, req = e.req, rec = e.rec,
-                                quality = e.quality, score = boxWidth.score, upgrade = hasUpgrade, baseIlvl = baseIlvl, baseScore = base,
-                                bis = boxWidth.bis, baseLink = baseLink, weights = weights, sortVal = boxWidth.sv, comparable = comparable, compareNote = compareNote }
-                            if #picked >= (priorityQueue and 30 or perSlot) then break end
+                    if not comparable or worn[boxWidth.e.id] then return false end
+                    if emptySlot then return boxWidth.score > 0 end
+                    return boxWidth.score > base * (1 + ns.UPGRADE_MARGIN_PCT) + ns.UPGRADE_MARGIN_ABS
+                end
+                local function allowed(e)
+                    return not savedDB.classFilter or GearScoringEngine.hasClassAllowed(e.id) ~= false
+                end
+                local function pick(boxWidth, hasUpgrade)
+                    local e = boxWidth.e
+                    picked[#picked + 1] = { id = e.id, link = e.link, ilvl = e.ilvl, req = e.req, rec = e.rec,
+                        quality = e.quality, score = boxWidth.score, upgrade = hasUpgrade, baseIlvl = baseIlvl, baseScore = base,
+                        bis = boxWidth.bis, rank = boxWidth.rank, worn = worn[e.id] and true or false,
+                        baseLink = baseLink, weights = weights, sortVal = boxWidth.sv, comparable = comparable, compareNote = compareNote }
+                end
+                -- Places by score among the items this class can wear (items with nothing scored get none):
+                -- 1st = BiS (1st and 2nd for rings and trinkets), the next ones are alternatives.
+                -- The list shows the BiS always (also when it is worn) and then the alternatives
+                -- (with "upgrades only": those better than the item worn now).
+                local bisCount = #greenVal.inv
+                local limit = priorityQueue and 30 or perSlot
+                local listMode = not sortTokens and not priorityQueue
+                -- the first places of the slot, kept for the try-on window (UI/BisPreview.lua)
+                local keep = math.max(bisCount + 2, RANK_KEEP)
+                local rankedList = {}
+                specRanked[greenVal.key] = rankedList
+                local rank = 0
+                for _, boxWidth in ipairs(itemList) do
+                    local e = boxWidth.e
+                    local hasUpgrade = isUpgrade(boxWidth)
+                    if rank >= keep then
+                        if not listMode or #picked >= limit then break end
+                        -- sorted by score: past the first item that is neither worn nor better, none is better
+                        if savedDB.upgradeOnly and not presentReference and not hasUpgrade and not worn[e.id] then break end
+                    end
+                    if allowed(e) then
+                        if boxWidth.score - (e.ilvl or 0) * ns.ILVL_WEIGHT > 1e-6 then
+                            rank = rank + 1
+                            boxWidth.rank = rank
+                            if rank <= bisCount + 2 then
+                                boxWidth.bis = (rank <= bisCount) and 2 or 1
+                                if (ranks[e.id] or 0) < boxWidth.bis then ranks[e.id] = boxWidth.bis end
+                            end
+                            if rank <= keep then
+                                rankedList[#rankedList + 1] = { id = e.id, link = e.link, ilvl = e.ilvl, req = e.req, rec = e.rec,
+                                    quality = e.quality, score = boxWidth.score, rank = rank, bis = boxWidth.bis,
+                                    worn = worn[e.id] and true or false, upgrade = hasUpgrade }
+                            end
+                        end
+                        if listMode and #picked < limit then
+                            local isBis = boxWidth.rank and boxWidth.rank <= bisCount
+                            if isBis or presentReference or not savedDB.upgradeOnly or hasUpgrade then pick(boxWidth, hasUpgrade) end
+                        end
+                    else
+                        boxWidth.blocked = true
+                    end
+                end
+                -- sorted by a chosen stat, or a search: that order, with the usual rules
+                if not listMode then
+                    local order = itemList
+                    if sortTokens then
+                        order = {}
+                        for i, x in ipairs(itemList) do order[i] = x end
+                        table.sort(order, function(alphaVal, buttonWidget)
+                            if alphaVal.sv ~= buttonWidget.sv then return alphaVal.sv > buttonWidget.sv end
+                            if alphaVal.score ~= buttonWidget.score then return alphaVal.score > buttonWidget.score end
+                            return alphaVal.e.id < buttonWidget.e.id
+                        end)
+                    end
+                    for _, boxWidth in ipairs(order) do
+                        local hasUpgrade = isUpgrade(boxWidth)
+                        if priorityQueue and not doesCandidateMatchFilter(boxWidth.e) then
+                            -- not what is searched for
+                        elseif (priorityQueue or presentReference or not savedDB.upgradeOnly or hasUpgrade) and not boxWidth.blocked and allowed(boxWidth.e) then
+                            pick(boxWidth, hasUpgrade)
+                            if #picked >= limit then break end
+                        end
+                    end
+                end
+                -- nothing to recommend for the slot (e.g. no relic in the level range): the item
+                -- worn there, so the slot still shows what is in it
+                if listMode and #picked == 0 and not other then
+                    for _, invSlot in ipairs(greenVal.inv) do
+                        local link = GetInventoryItemLink("player", invSlot)
+                        local wid = GetInventoryItemID and GetInventoryItemID("player", invSlot)
+                        local wornLoc = link and select(4, resolveItemInfoInstantC(link))
+                        local inGroup = wornLoc and (greenVal.locs[wornLoc] or (greenVal.key == "OFF" and ns.OFF_EXTRA_LOCS[wornLoc]))
+                        if link and wid and inGroup then
+                            local name, _, quality, ilvl, reqLevel = resolveItemInfoC(link)
+                            if name then
+                                local rec = type(self.index[wid]) == "table" and self.index[wid]
+                                    or { src = {}, icon = C_Item.GetItemIconByID and C_Item.GetItemIconByID(wid) }
+                                picked[#picked + 1] = { id = wid, link = link, ilvl = ilvl or 0, req = reqLevel or 0, rec = rec,
+                                    quality = quality, score = (GearScoringEngine.evaluateItemRoleScore(link, ilvl, weights)), upgrade = false,
+                                    baseIlvl = baseIlvl, baseScore = base, bis = 0, worn = true, baseLink = baseLink, weights = weights,
+                                    comparable = comparable, compareNote = compareNote }
+                            end
                         end
                     end
                 end
@@ -1137,6 +1442,8 @@ function ns:EvaluateAllSlotCandidates()
     self.views, self.bands = views, bands
     self.stats.candidates, self.stats.ready, self.stats.pending = cand, ready, pending
     self.stats.skipped = skipped
+    -- the try-on window shows the new places (UI/BisPreview.lua)
+    if ns.BisPreview and ns.BisPreview.OnRanksUpdated then pcall(ns.BisPreview.OnRanksUpdated) end
     return pending
 end
 
@@ -1268,6 +1575,50 @@ function GearScoringEngine.locBoss(boss, npc)
 end
 ns.GetLocalizedInstanceName, ns.GetLocalizedBossName = GearScoringEngine.locInst, GearScoringEngine.locBoss
 
+-- What a search by boss / dungeon / quest name looks at: the names as stored and as
+-- shown (boss names are stored in English, dungeon names in Korean). Kept per item and language.
+function ns:SourceSearchText(rec)
+    if type(rec) ~= "table" then return "" end
+    local lang = (ns.GetActiveLocale and ns.GetActiveLocale()) or ""
+    if rec.searchText and rec.searchLang == lang then return rec.searchText end
+    local parts = {}
+    for _, stateFlag in ipairs(rec.src or {}) do
+        parts[#parts + 1] = stateFlag.boss or ""
+        parts[#parts + 1] = stateFlag.inst or ""
+        if stateFlag.boss and stateFlag.boss ~= "" and stateFlag.boss ~= "?" then
+            local ok, name = pcall(GearScoringEngine.locBoss, stateFlag.boss, stateFlag.creature)
+            if ok and type(name) == "string" then parts[#parts + 1] = name end
+        end
+        if stateFlag.kind == "quest" then
+            local ok, title = pcall(ns.QuestTitle, ns, stateFlag)
+            if ok and type(title) == "string" then parts[#parts + 1] = title end
+        elseif stateFlag.inst and stateFlag.inst ~= "" then
+            local ok, name = pcall(GearScoringEngine.locInst, stateFlag.inst)
+            if ok and type(name) == "string" then parts[#parts + 1] = name end
+        end
+    end
+    rec.searchText = string.lower(table.concat(parts, " "))
+    rec.searchLang = lang
+    return rec.searchText
+end
+
+-- zone / dungeon of a source, or nil when it isn't known (shared records can lack it)
+function GearScoringEngine.placeName(inst)
+    if type(inst) ~= "string" or inst == "" or inst == "?" then return nil end
+    local name = GearScoringEngine.locInst(inst)
+    if type(name) ~= "string" or name == "" then return nil end
+    return name
+end
+-- where a drop comes from in a few words: the zone, else the creature
+function GearScoringEngine.dropPlace(stateFlag)
+    local place = GearScoringEngine.placeName(stateFlag.inst)
+    if place then return place end
+    if stateFlag.boss and stateFlag.boss ~= "" and stateFlag.boss ~= "?" then
+        return GearScoringEngine.locBoss(stateFlag.boss, stateFlag.creature)
+    end
+    return L["월드 드랍"]
+end
+
 function ns:FormatCompactDropSource(rec, id)
     local stateFlag = self:PrimarySource(rec)
     if not stateFlag then
@@ -1283,7 +1634,7 @@ function ns:FormatCompactDropSource(rec, id)
     if stateFlag.kind == "quest" then return L["퀘스트:"] .. self:QuestTitle(stateFlag) end
     if stateFlag.kind == "vendor" then return L["상인:"] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature) end
     if stateFlag.chance and stateFlag.chance < (savedDB.minChance or 0) then return L["월드 드랍"] end
-    return GearScoringEngine.locInst(stateFlag.inst)
+    return GearScoringEngine.dropPlace(stateFlag)
 end
 
 function ns:FormatDetailedDropSource(stateFlag)
@@ -1305,12 +1656,15 @@ function ns:FormatPrimaryDropSource(stateFlag)
         return resolvedValue .. ") · " .. (stateFlag.choice and L["선택 보상"] or L["확정 보상"])
     end
     if stateFlag.kind == "vendor" then
-        return L["상인: "] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature) .. " (" .. GearScoringEngine.locInst(stateFlag.inst) .. ")"
+        local vendorZone = GearScoringEngine.placeName(stateFlag.inst)
+        return L["상인: "] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature) .. (vendorZone and (" (" .. vendorZone .. ")") or "")
     end
     if stateFlag.chance and stateFlag.chance < (savedDB.minChance or 0) then
         return string.format(L["월드 드랍 - 잡몹 (%.3f%%)"], stateFlag.chance)
     end
-    local resolvedValue = GearScoringEngine.locInst(stateFlag.inst) .. ((stateFlag.boss and stateFlag.boss ~= "") and (" - " .. GearScoringEngine.locBoss(stateFlag.boss, stateFlag.creature)) or "")
+    local dropZone = GearScoringEngine.placeName(stateFlag.inst)
+    local dropBoss = (stateFlag.boss and stateFlag.boss ~= "" and stateFlag.boss ~= "?") and GearScoringEngine.locBoss(stateFlag.boss, stateFlag.creature) or nil
+    local resolvedValue = (dropZone and dropBoss) and (dropZone .. " - " .. dropBoss) or dropZone or dropBoss or L["월드 드랍"]
     if stateFlag.chance then resolvedValue = resolvedValue .. string.format(" (%.1f%%)", stateFlag.chance) end
     return resolvedValue
 end
@@ -1368,21 +1722,25 @@ function ns:EstimateSource(id)
         if kind == "quest" then extractSafeTooltipText = L["퀘스트 보상"]
         elseif kind == "vendor" then extractSafeTooltipText = L["상인 판매"]
         elseif kind == "craft" then extractSafeTooltipText = L["제작"]
-        elseif niVal == 1 then extractSafeTooltipText = GearScoringEngine.locInst(inst) .. L[" 드랍"]
+        elseif niVal == 1 and GearScoringEngine.placeName(inst) then extractSafeTooltipText = GearScoringEngine.placeName(inst) .. L[" 드랍"]
         else return nil end
         return { short = extractSafeTooltipText, long = extractSafeTooltipText, near = nearest, dist = ndVal, sure = false, wide = true }
     end
     local stateFlag = GearScoringEngine.resolveKnownSource(self.index[best])
     local short, long
     if stateFlag.kind == "drop" then
-        short = GearScoringEngine.locInst(stateFlag.inst)
-        long = GearScoringEngine.locInst(stateFlag.inst) .. ((stateFlag.boss and stateFlag.boss ~= "" and stateFlag.boss ~= "?") and (" - " .. GearScoringEngine.locBoss(stateFlag.boss, stateFlag.creature)) or "")
+        local zone = GearScoringEngine.placeName(stateFlag.inst)
+        local boss = (stateFlag.boss and stateFlag.boss ~= "" and stateFlag.boss ~= "?") and GearScoringEngine.locBoss(stateFlag.boss, stateFlag.creature) or nil
+        if not zone and not boss then return nil end
+        short = zone or boss
+        long = (zone and boss) and (zone .. " - " .. boss) or short
     elseif stateFlag.kind == "quest" then
         short = L["퀘스트:"] .. self:QuestTitle(stateFlag)
         long = L["퀘스트: "] .. self:QuestTitle(stateFlag) .. L[" 근처 퀘스트"]
     elseif stateFlag.kind == "vendor" then
         short = L["상인:"] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature)
-        long = L["상인: "] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature) .. " (" .. GearScoringEngine.locInst(stateFlag.inst) .. ")"
+        local vendorZone = GearScoringEngine.placeName(stateFlag.inst)
+        long = L["상인: "] .. GearScoringEngine.locBoss(stateFlag.boss or "?", stateFlag.creature) .. (vendorZone and (" (" .. vendorZone .. ")") or "")
     else
         short = L["제작:"] .. GearScoringEngine.locInst(stateFlag.inst)
         long = L["제작: "] .. GearScoringEngine.locInst(stateFlag.inst)
@@ -1538,6 +1896,7 @@ end
 
 function ns:ForceRefresh()
     scoreCache = {}
+    ns.StatWeights.Reset()
     wipe(statsCache)
     wipe(statsLinks)
     wipe(tooltipStatsByID)
@@ -1551,6 +1910,7 @@ function ns:ForceRefresh()
     queueHiHead, queueHead, queueLoHead, searchHead = 1, 1, 1, 1
     wipe(attempts)
     wipe(dead)
+    GearScoringEngine.loadMissing()   -- items known not to be in this game version stay skipped
     if self.indexState == "empty" then self:ResetIndex() end
     self:Refresh(true)
 end
@@ -1634,6 +1994,9 @@ eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 pcall(eventFrame.RegisterEvent, eventFrame, "QUEST_TURNED_IN")
 pcall(eventFrame.RegisterEvent, eventFrame, "QUEST_DATA_LOAD_RESULT")
 pcall(eventFrame.RegisterEvent, eventFrame, "BAG_UPDATE_DELAYED")
+-- talents change hit and the stat values
+local TALENT_EVENTS = { CHARACTER_POINTS_CHANGED = true, PLAYER_TALENT_UPDATE = true, TRAIT_CONFIG_UPDATED = true }
+for talentEvent in pairs(TALENT_EVENTS) do pcall(eventFrame.RegisterEvent, eventFrame, talentEvent) end
 eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2)
     if event == "ADDON_LOADED" then
         if arg1 == ADDON then GearScoringEngine.bootstrapDB() end
@@ -1648,9 +2011,10 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2)
         end)
     elseif event == "GET_ITEM_INFO_RECEIVED" then
         if arg2 == true then
-            dead[arg1], requested[arg1], attempts[arg1] = nil, nil, nil
+            requested[arg1], attempts[arg1] = nil, nil
+            GearScoringEngine.unmarkMissing(arg1)
             GearScoringEngine.invalidateItemCaches(arg1)
-        elseif arg2 == false and requested[arg1] then dead[arg1] = true end   
+        elseif arg2 == false and requested[arg1] then GearScoringEngine.markMissing(arg1) end
         if ns.frame and ns.frame:IsShown() and ns.stats.pending > 0 then ns:ScheduleRefresh(0.25) end
         if ns.HandleItemInfoReceived then ns.HandleItemInfoReceived(arg1, arg2) end
     elseif event == "QUEST_TURNED_IN" then
@@ -1659,7 +2023,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2)
         ns:ScheduleUIUpdate()
     elseif event == "PLAYER_LEVEL_UP" then
         C_Timer.After(0.5, function() ns:Refresh(true) end)
-    elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE_DELAYED" then
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "BAG_UPDATE_DELAYED" or TALENT_EVENTS[event] then
         ns:ScheduleRefresh(0.3)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if ns.indexState == "idle" or ns.indexState == "empty" then ns:Refresh(true) end
@@ -1677,6 +2041,8 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
         if ns.SearchFor then ns:SearchFor(priorityQueue) end
     elseif msg == "config" or msg == "opt" or msg == "options" or msg == "settings" or msg == "설정" then
         if ns.ToggleSettingsWindow then ns:ToggleSettingsWindow() end
+    elseif msg == "bis" or msg == "tryon" or msg == "착용" then
+        if ns.ToggleBisPreview then ns:ToggleBisPreview() end
     elseif msg == "debug" or msg == "diag" or msg == "진단" then
         if ns.indexState == "done" and ns.frame then ns:Refresh(true) end
         GearScoringEngine.printAddonChatMessage(string.format(L["상태=%s, 모듈=%d, 보스=%d, 장비 아이템=%d(제작 %d, 퀘스트 %d), 후보=%d, 로딩완료=%d, 대기=%d"],
@@ -1719,8 +2085,10 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
                 for entryKey, entryValue in pairs(stateEntry) do parts[#parts + 1] = entryKey:gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "") .. "=" .. tostring(entryValue) end
                 table.sort(parts)
                 platformHelper("stats: " .. (#parts > 0 and table.concat(parts, ", ") or "(none)"))
-                for _, spawnCoord in ipairs(ns:GetSpecList()) do
-                    platformHelper(("score[%s]=%.1f"):format(spawnCoord.nameKo or spawnCoord.name, GearScoringEngine.evaluateItemRoleScore(link, ilvl, spawnCoord.w)))
+                local whyGroup = locToGroups[rec.loc] and locToGroups[rec.loc][1]
+                for siVal, spawnCoord in ipairs(ns:GetSpecList()) do
+                    local whyScore = GearScoringEngine.evaluateItemRoleScore(link, ilvl, ns.StatWeights.For(siVal, spawnCoord, whyGroup))
+                    platformHelper(("score[%s]=%.1f bis=%d"):format(spawnCoord.nameKo or spawnCoord.name, whyScore, ns:GetBestInSlotRank(siVal, id)))
                 end
             else
                 platformHelper("stats: not available (" .. tostring(link and "no stats" or "not loaded") .. ")")
@@ -1820,12 +2188,16 @@ SlashCmdList["EZWOWBESTGEARFINDER"] = function(msg)
         ns:Refresh(true)
     elseif msg == "rescan" or msg == "재검색" then
         savedDB.scan = {}
+        -- items remembered as not in the game are checked again too
+        savedDB.missing = nil
+        wipe(dead)
+        GearScoringEngine.loadMissing()
         GearScoringEngine.printAddonChatMessage(L["신규 아이템을 처음부터 다시 검색합니다."])
         ns:ResetIndex()
         ns:Refresh(true)
     elseif msg == "help" or msg == "?" or msg == "도움말" then
         for _, line in ipairs({
-            L["/ezbg : 추천 장비 창 열기/닫기"], L["/ezbg config : 설정창"], L["/ezbg find 이름 : 전체 아이템 검색 창"],
+            L["/ezbg : 추천 장비 창 열기/닫기"], L["/ezbg bis : BiS 착용 보기"], L["/ezbg config : 설정창"], L["/ezbg find 이름 : 전체 아이템 검색 창"],
             L["/ezbg 20-35 : 요구 레벨 범위 지정"], L["/ezbg icon : 아이콘 숨기기 / 보이기"], L["/ezbg reset : 창·아이콘 위치 초기화"],
             L["/ezbg diag : 상태 진단"],
         }) do GearScoringEngine.printAddonChatMessage(line) end

@@ -23,7 +23,9 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 
 ![설정창](docs/images/settings_ko.png)
 
-> 이미지는 애드온 코드의 창 크기·좌표·색상·문구로 재현한 **예시 화면**입니다. 성기사 28레벨 예시이며, 아이템 이름 · 점수 · 획득처는 지어낸 예시입니다.
+![BiS 착용 보기 (실제 게임 화면)](docs/images/tryon_ko.png)
+
+> 실제 게임 화면입니다(WoW Forever, 한국어 클라이언트). 캐릭터 · 다른 플레이어 이름과 채팅 내용은 가렸습니다.
 
 ### 설치
 
@@ -31,21 +33,23 @@ WoW Forever (`Interface: 16001`) · `/ezbg`
 2. 캐릭터 선택 화면의 **애드온** 목록에서 켭니다.
 3. `/ezbg` 또는 화면의 런처 아이콘(좌클릭)으로 추천 장비 창을 엽니다.
 
-### 추천 장비 창 사용법 (위 그림의 번호)
+### 추천 장비 창 사용법
 
 | 번호 | 부분 | 설명 |
 |---|---|---|
-| ① | 정렬 | **추천순**(직업·역할별 스탯 가중치 점수, 기본) 또는 **30레벨 BiS 우선**. 방어도·초당 공격력·힘·민첩성·체력·지능·정신력 등을 체크하면 **체크한 값의 합계가 큰 순서**로 정렬합니다. |
+| ① | 정렬 · BiS 기준 | **추천순**(특성별 능력치 가치로 매긴 점수, 기본). 방어도·초당 공격력·힘·민첩성·체력·지능·정신력 등을 체크하면 **체크한 값의 합계가 큰 순서**로 정렬합니다. 옆의 **BiS 기준** 단추는 점수와 BiS를 정하는 방법(특성별 능력치 1점의 가치, 지금 적중과 상한)을 보여 줍니다. 창을 처음 열 때 한 번 뜨며 “다시 보지 않기”로 끌 수 있습니다. |
 | ② | 요구 레벨 범위 | 두 칸에 레벨을 넣고 **검색**(또는 Enter). **자동(현재-10)**은 “내 레벨-10 ~ 내 레벨”로 되돌리며, 레벨이 오르면 같이 올라갑니다. |
 | ③ | 역할 열 · 단추 | 직업의 특성별 열(예: 징벌(딜) · 신성(힐) · 보호(탱))을 나란히 보여 줍니다. 오른쪽 위 **내 캐릭터 ▼**에서 다른 직업을 골라 미리 볼 수 있습니다(이때는 내 장비와 비교하지 않습니다. 목록에는 지금 보고 있는 직업이 `>` 표시와 금색으로 나옵니다). 정렬·직업 펼침 메뉴는 바깥을 누르면 닫힙니다. **아이템 검색**은 전체 아이템 검색 창을, **설정**은 설정창을 엽니다. |
 | ④ | 부위(슬롯) 헤더 | 클릭하면 모든 역할 열에서 그 부위를 접거나 펼칩니다. 접힌 상태는 저장됩니다. |
-| ⑤ | 추천 행 | 녹색 배경과 `▲ +%`는 **업그레이드**, 회색 `%`는 참고용, `BiS`(노랑)/`BiS*`(회색)는 30레벨 BiS 목록 1순위/대체 장비입니다. 셋째 줄은 **요구 레벨 · 획득처**(던전 이름, `제작:대장기술`, `퀘스트:…`, `상인:…`, `월드 드랍`)입니다. |
+| ⑤ | 추천 행 | 녹색 배경과 `▲ +%`는 **업그레이드**, 회색 `%`는 참고용, `BiS`(노랑)는 지금 범위에서 점수 1위(반지·장신구는 1·2위)이고 늘 보입니다. 이미 끼고 있으면 `착용 중`으로 나옵니다. 그 아래 `2위`·`3위`…는 대체품으로, 지금 장비보다 좋은 것만 나옵니다(“업그레이드만” 설정). 쓸 후보가 없는 부위는 지금 장비를 `착용 중`으로 보여 줍니다. 셋째 줄은 **요구 레벨 · 획득처**(던전 이름, `제작:대장기술`, `퀘스트:…`, `상인:…`, `월드 드랍`)입니다. |
 | ⑥ | 행 툴팁 | 착용 장비 대비 변화, 추정 점수(이 아이템 / 착용 중)를 보여 줍니다. **우클릭**: EzWoW - Map Finder로 획득처(보스·퀘스트 `Q `·상인 `N `) 위치 검색 / **Shift+좌클릭**: 채팅 링크 / **Ctrl+좌클릭**: 착용 미리보기 |
-| ⑦ | 아이템 툴팁 획득처 | 가방 · 보상 · 채팅 링크 장비 툴팁에 `EzWoW - Best Gear Finder` 블록을 붙입니다: 역할별 BiS 여부, 획득처(드랍 · 퀘스트 · 상인 · 제작), 제작품이면 재료와 배우는 곳. |
+| ⑦ | 아이템 툴팁 획득처 | 가방 · 보상 · 채팅 링크 장비 툴팁에 `EzWoW - Best Gear Finder` 블록을 붙입니다: 역할별 BiS 여부, 획득처(드랍 · 퀘스트 · 상인 · 제작), 제작품이면 재료와 배우는 곳. **EzWoW - Tooltip**이 있으면 이 내용이 그쪽 블록 안에 함께 나옵니다. |
 | ⑧ | 상태 줄 | 현재 요구 레벨 범위와 확인된 아이템 수. 오른쪽 아래 모서리를 끌어 창 높이를 바꿉니다. |
 
 #### 그 밖의 기능
 
+- **BiS 착용 보기** (추천 창의 **BiS 착용** 단추 또는 `/ezbg bis`): 캐릭터 창 모양으로 부위마다 BiS를 놓고, 가운데 내 캐릭터 모델에 입혀 보여 줍니다(끌어서 돌리기). 오른쪽에는 지금 장비와 비교한 능력치 변화와 점수 변화가 나옵니다. 부위 칸을 누르면 BiS·2위·3위…·지금 장비 중에서 고를 수 있고, 위쪽 탭으로 특성을 바꿉니다. 무기는 양손 무기와 한손+보조 중 점수가 높은 쪽으로 입힙니다.
+- **점수 계산**: 특성마다 정한 60레벨 기준 능력치 가치를 지금 레벨의 게임 환산값(민첩성·지능 → 치명타, 등급 → %)과 내 전투력·주문력에 맞춰 씁니다. 적중·숙련·방어 숙련은 상한까지만 높게 치고, 그 부위에 지금 낀 장비의 적중은 빼고 계산합니다. 무기 초당 공격력은 주무기·보조·원거리에 따라 다르게 셉니다.
 - **퀘스트 수락 레벨 검사**: 지금 레벨(또는 지정한 범위)에서 받을 수 없는 고레벨 퀘스트 보상은 후보에서 뺍니다.
 - **획득처 자동 기록**: 전리품, 퀘스트 보상, 상인 목록에서 기본 데이터에 없던 획득처를 배워 바로 추천과 툴팁에 반영합니다(`/ezbg 기록`, `/ezbg 내보내기`). 회색(잡동사니) 아이템은 기록하지 않고, 예전에 기록된 회색 아이템 항목은 자동으로 지웁니다. 전투 중에 기록되면 “획득처를 기록했습니다” 알림은 전투가 끝난 뒤 채팅에 나옵니다.
 - **아이템 툴팁 확장**: 가방·보상·채팅 링크 아이템에 역할별 BiS 여부와 획득처를 덧붙입니다. 목록에 마우스를 올리면 착용 장비 비교 툴팁을 함께 띄웁니다.
@@ -134,7 +138,9 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 
 ![Settings window](docs/images/settings_en.png)
 
-> These are **mock-ups** rebuilt from the window sizes, coordinates, colours and strings in the addon code (level 28 Paladin example; item names, scores and sources are made up).
+![BiS try-on (in-game, Korean client)](docs/images/tryon_ko.png)
+
+> In-game screenshots (WoW Forever, Korean client). Character and player names and chat text are blurred.
 
 ### Installation
 
@@ -142,21 +148,23 @@ Best Gear Finder shows the **best gear you can wear right now** for your class a
 2. Enable it in the **AddOns** list on the character select screen.
 3. Open the gear window with `/ezbg` or by left-clicking the on-screen launcher icon.
 
-### Using the gear window (numbers in the picture)
+### Using the gear window
 
 | No. | Part | Description |
 |---|---|---|
-| ① | Sort | **Recommended** (role stat-weight score, default) or **Level 30 BiS first**. Tick armor, DPS, Strength, Agility, Stamina, Intellect, Spirit… to sort by **the sum of the ticked stats**. |
+| ① | Sort · BiS criteria | **Recommended** (score from per-spec stat worth, default). Tick armor, DPS, Strength, Agility, Stamina, Intellect, Spirit… to sort by **the sum of the ticked stats**. The **BiS criteria** button next to it shows how the score and BiS are worked out (each spec's worth per stat point, your hit against the cap). It opens once when you first open the window; tick “Don't show again” to stop that. |
 | ② | Required-level range | Enter two levels and press **Search** (or Enter). **Auto (Lv-10)** returns to “your level - 10 ~ your level” and follows you as you level. |
 | ③ | Role columns · buttons | One column per spec (e.g. Retribution (DPS) · Holy (Heal) · Protection (Tank)). **My character ▼** previews other classes (no comparison with your gear in that mode; the class being shown is marked with `>` in gold). The sort and class drop-downs close when you click anywhere else. **Item search** opens the full item search, **Settings** the settings window. |
 | ④ | Slot header | Click to collapse/expand that slot in every column. The state is saved. |
-| ⑤ | Item row | Green background and `▲ +%` = **upgrade**, grey `%` = reference only, `BiS` (yellow) / `BiS*` (grey) = level-30 BiS main / alternative. The third line shows **required level · source** (dungeon, `Craft: Blacksmithing`, `Quest: …`, `Vendor: …`, `World drop`). |
+| ⑤ | Item row | Green background and `▲ +%` = **upgrade**, grey `%` = reference only, `BiS` (yellow) = top score in the current range (1st and 2nd for rings and trinkets), always listed; when you already wear it, it shows `Equipped`. Below it `#2`, `#3`… are alternatives, listed when better than what you wear (“upgrades only”). A slot with no candidates shows the item you wear as `Equipped`. The third line shows **required level · source** (dungeon, `Craft: Blacksmithing`, `Quest: …`, `Vendor: …`, `World drop`). |
 | ⑥ | Row tooltip | Change versus equipped and estimated score (this item / equipped). **Right-click**: find the source (boss, quest `Q `, vendor `N `) with EzWoW - Map Finder / **Shift+left-click**: link in chat / **Ctrl+left-click**: dress-up preview |
-| ⑦ | Sources in item tooltips | Bag, reward and chat-link gear tooltips get an `EzWoW - Best Gear Finder` block: BiS per role, sources (drop, quest, vendor, craft) and, for crafted gear, reagents and where the recipe is learned. |
+| ⑦ | Sources in item tooltips | Bag, reward and chat-link gear tooltips get an `EzWoW - Best Gear Finder` block: BiS per role, sources (drop, quest, vendor, craft) and, for crafted gear, reagents and where the recipe is learned. With **EzWoW - Tooltip** installed, these lines appear inside its block. |
 | ⑧ | Status line | Current range and number of items found. Drag the bottom-right corner to change the window height. |
 
 #### More features
 
+- **BiS try-on** (the **Try on BiS** button in the gear window, or `/ezbg bis`): a character-window layout with the BiS of each slot, worn by your character's model in the middle (drag to turn). On the right, the stat and score changes against your current gear. Click a slot to pick the BiS, #2, #3… or your current item; the tabs at the top switch spec. Weapons use the better of a two-hand weapon or one-hand + off hand.
+- **Scoring**: each spec has level-60 stat worths, scaled with the game's conversions at your level (Agility / Intellect to crit, rating to percent) and your attack / spell power. Hit, expertise and defense count fully only up to their caps, leaving out the item now worn in that slot. Weapon DPS counts differently for main hand, off hand and ranged.
 - **Quest level check**: quest rewards you cannot pick up yet at your level (or chosen range) are left out.
 - **Learning sources**: loot, quest rewards and vendor lists teach the addon sources missing from its data; they show up in recommendations and tooltips at once (`/ezbg learned`, `/ezbg export`). Grey (junk) items are never recorded, and entries recorded for them earlier are removed. When a source is recorded during combat, the chat notice appears after the fight.
 - **Item tooltips**: bag, reward and chat-link tooltips get BiS info per role and the sources. Hovering list rows also opens the equipped-gear comparison.
