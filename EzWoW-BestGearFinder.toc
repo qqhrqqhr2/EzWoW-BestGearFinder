@@ -29,7 +29,7 @@
 ## X-License: GPL-3.0
 ## X-Website: https://buymeacoffee.com/qqhrqqhr2
 ## X-Donate: https://buymeacoffee.com/qqhrqqhr2
-## SavedVariables: EzWoW_BestGearFinderDB, EzWoW_SharedData
+## SavedVariables: EzWoW_BestGearFinderDB, EzWoW_SharedData, EzWoW_ShareStore_BestGearFinder
 
 Libs\EzWoWGamePad\GamePad.lua
 Libs\EzWoWShare\Share.lua

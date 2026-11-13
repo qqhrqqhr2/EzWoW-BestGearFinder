@@ -453,6 +453,33 @@ end
 -----------------------------------------------------------------------------
 -- Building
 -----------------------------------------------------------------------------
+local function addSlotHint(tip)
+    tip:AddLine(L["클릭: 다른 순위 고르기"], 0.294, 0.784, 0.910)
+end
+-- Registered on the first slot hover (after the other item post-calls), so the hint
+-- is added again whenever the game redraws the item tooltip (item data arriving).
+local slotHintHooked
+local function hookSlotHint()
+    if slotHintHooked ~= nil then return slotHintHooked end
+    slotHintHooked = false
+    if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Item then
+        local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Item, function(tip, data)
+            if tip ~= GameTooltip then return end
+            local okOwner, owner = pcall(tip.GetOwner, tip)
+            if not okOwner or type(owner) ~= "table" or not owner.isTryOnSlot then return end
+            local entry = state.sel[owner.slotInv]
+            if not entry or entry == NONE or not entry.link then return end
+            local itemID
+            if type(data) == "table" then itemID = data.id end
+            if issecretvalue and issecretvalue(itemID) then itemID = nil end
+            if type(itemID) == "number" and type(entry.id) == "number" and itemID ~= entry.id then return end
+            pcall(addSlotHint, tip)
+        end)
+        slotHintHooked = ok and true or false
+    end
+    return slotHintHooked
+end
+
 local function makeSlot(info, x, y)
     local button = CreateFrame("Button", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     button:SetSize(SLOT, SLOT)
@@ -470,6 +497,8 @@ local function makeSlot(info, x, y)
     button.tag:SetJustifyH("CENTER")
     button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button.isTryOnSlot = true
+    button.slotInv = info.inv
     button:SetScript("OnClick", function(self, mouse)
         local entry = state.sel[info.inv]
         if mouse == "RightButton" then
@@ -484,12 +513,14 @@ local function makeSlot(info, x, y)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         local entry = state.sel[info.inv]
         if entry and entry ~= NONE and entry.link then
+            local viaPostCall = hookSlotHint()
             GameTooltip:SetHyperlink(entry.link)
+            if not viaPostCall then addSlotHint(GameTooltip) end
         else
             local group = info.group == "MAIN" and groupByKey("MAIN1H") or groupByKey(info.group)
             GameTooltip:AddLine(entry == NONE and L["(양손 무기)"] or (group and group.label or ""), 1, 1, 1)
+            addSlotHint(GameTooltip)
         end
-        GameTooltip:AddLine(L["클릭: 다른 순위 고르기"], 0.294, 0.784, 0.910)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)

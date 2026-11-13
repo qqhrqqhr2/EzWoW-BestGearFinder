@@ -153,9 +153,10 @@ function GearScoringEngine.addSource(rec, inst, boss, minLvl, kind, skill, extra
     extra = extra or {}
     for _, stateFlag in ipairs(rec.src) do
         if stateFlag.kind == kind then
-            if kind == "quest" then
-                if stateFlag.qid == extra.qid then return end
-            elseif stateFlag.inst == inst and stateFlag.boss == boss and stateFlag.creature == extra.creature and stateFlag.map == extra.map then
+            if (kind == "quest" and stateFlag.qid == extra.qid)
+                or (kind ~= "quest" and stateFlag.inst == inst and stateFlag.boss == boss and stateFlag.creature == extra.creature and stateFlag.map == extra.map) then
+                -- the player now saw a row that came from shared records
+                if extra.learned and stateFlag.shared then stateFlag.shared = nil; stateFlag.learned = true end
                 return
             end
         end
@@ -292,7 +293,7 @@ end
 
 function GearScoringEngine.containsKnown(rec)
     for _, stateFlag in ipairs(rec.src) do
-        if stateFlag.kind ~= "unknown" and not stateFlag.learned then return true end
+        if stateFlag.kind ~= "unknown" and not stateFlag.learned and not stateFlag.shared then return true end
     end
     return false
 end
@@ -510,13 +511,16 @@ function GearScoringEngine.indexForeverExtra()
     local function resolveSideOK(e) return not e.side or e.side == "both" or e.side == myFaction end
     local okShared, shared = pcall(GearScoringEngine.sharedSources)
     shared = okShared and shared or nil
-    for _, coordinateHelper in ipairs({ ns.CraftData, ns.ForeverExtra, ns.DungeonData, ns.WorldData, ns.ItemSources, savedDB and savedDB.learned, shared or false }) do
-        local learned = ((savedDB and coordinateHelper == savedDB.learned) or (shared and coordinateHelper == shared)) or nil   
-        skipKnown = learned and true or false             
+    -- "or false" keeps ipairs going to the shared slot when nothing has been learned yet
+    for _, coordinateHelper in ipairs({ ns.CraftData, ns.ForeverExtra, ns.DungeonData, ns.WorldData, ns.ItemSources, (savedDB and savedDB.learned) or false, shared or false }) do
+        local learned = (savedDB and savedDB.learned and coordinateHelper == savedDB.learned) and true or nil
+        -- other players' records: not "seen by you", and not authoritative (see containsKnown)
+        local fromShare = (shared and coordinateHelper == shared) and true or nil
+        skipKnown = (learned or fromShare) and true or false
         
         local onlyNew = (coordinateHelper == ns.WorldData or coordinateHelper == ns.ItemSources)
         if type(coordinateHelper) == "table" then
-            iterateEquipmentLocations(coordinateHelper.drops, function(rec, e) if not containsBoss(rec, e.boss) then GearScoringEngine.addSource(rec, e.inst, e.boss, nil, "drop", nil, { creature = e.npc, learned = learned }) end end)
+            iterateEquipmentLocations(coordinateHelper.drops, function(rec, e) if not containsBoss(rec, e.boss) then GearScoringEngine.addSource(rec, e.inst, e.boss, nil, "drop", nil, { creature = e.npc, learned = learned, shared = fromShare }) end end)
             iterateEquipmentLocations(coordinateHelper.quests, function(rec, e)
                 
                 local priorityQueue = e.qid and e.qid > 0 and ns.QUESTS and ns.QUESTS[e.qid]
@@ -527,14 +531,14 @@ function GearScoringEngine.indexForeverExtra()
                     GearScoringEngine.addSource(rec, (apiInfo and apiInfo.title) or e.title, "", nil, "quest", nil, {
                         qid = e.qid, ql = (apiInfo and apiInfo.level) or (priorityQueue and priorityQueue[2]) or e.lvl,
                         ml = GearScoringEngine.resolveQuestMinLevel(e.qid, e.minLevel), choice = e.choice == true,
-                        learned = learned, titleEn = (apiInfo and apiInfo.titleEn) or e.titleEn,
+                        learned = learned, shared = fromShare, titleEn =(apiInfo and apiInfo.titleEn) or e.titleEn,
                     })
                 end
             end)
             iterateEquipmentLocations(coordinateHelper.vendors, function(rec, e)
                 if not resolveSideOK(e) then return end
                 if not (onlyNew and rec.kinds.vendor) then
-                    GearScoringEngine.addSource(rec, e.zone, e.boss, nil, "vendor", nil, { creature = e.npc, learned = learned })
+                    GearScoringEngine.addSource(rec, e.zone, e.boss, nil, "vendor", nil, { creature = e.npc, learned = learned, shared = fromShare })
                 end
             end)
             iterateEquipmentLocations(coordinateHelper.craft, function(rec, e)
@@ -1552,13 +1556,38 @@ function GearScoringEngine.resolveNpcName(id)
     return nil
 end
 
+-- Korean zone name -> English, from the English->Korean name tables (zone table wins over boss table).
+-- Rebuilt when ns.NamesKO is switched to the shared copy after login.
+local zoneEnglish, zoneEnglishFrom
+function GearScoringEngine.englishZoneName(name)
+    local nk = ns.NamesKO
+    if type(nk) ~= "table" then return nil end
+    if zoneEnglishFrom ~= nk then
+        zoneEnglishFrom, zoneEnglish = nk, {}
+        for _, tbl in ipairs({ nk.boss or false, nk.zone or false }) do
+            if type(tbl) == "table" then
+                for en, ko in pairs(tbl) do
+                    if type(en) == "string" and type(ko) == "string" then zoneEnglish[ko] = en end
+                end
+            end
+        end
+    end
+    return zoneEnglish[name]
+end
+
 function GearScoringEngine.locInst(name)
     if not name then return "?" end
     if GearScoringEngine.hasKorean() then
         local koVal = (ns.NamesKO and ns.NamesKO.zone[name]) or (ns.ItemSources and ns.ItemSources.names and ns.ItemSources.names[name])
         if koVal then return koVal end
+        return L[name]
     end
-    return L[name]
+    local text = L[name]
+    -- Korean data name with no translation: show its English name instead
+    if text == name and type(name) == "string" and name:find("[\128-\255]") then
+        text = GearScoringEngine.englishZoneName(name) or text
+    end
+    return text
 end
 function GearScoringEngine.locBoss(boss, npc)
     if not boss then return "?" end
@@ -1935,6 +1964,7 @@ PulseAnimationDriver:SetScript("OnUpdate", function(_, dt)
             indexCo = nil
             baseNotified = false
             ns.indexState = (ns.indexStats.items > 0) and "done" or "empty"
+            if ns.indexState == "done" and ns.FlushPendingLearn then pcall(ns.FlushPendingLearn) end
             if ns.frame and ns.frame:IsShown() then
                 local okR, errR = pcall(ns.Refresh, ns)
                 if not okR then ns.lastError = tostring(errR); GearScoringEngine.printAddonChatMessage(L["|cffff5555화면 갱신 오류:|r "] .. tostring(errR)) end

@@ -88,6 +88,64 @@ local L = ns.L
 
 local MAX_LINES = 5
 
+-- No word wrap on tooltip lines: on this client a wrapped line is cut with "...".
+-- Long text goes on several short lines, broken only at separators outside brackets
+-- (never inside coordinates or "(Lv.30, ...)"), so Korean words are not split.
+local LINE_WIDTH = 64   -- a Korean/CJK character counts 2, other characters 1
+local BREAK_SEPS = { " / ", ", ", " · ", "; ", ". " }
+function TooltipUpgradeAdvisor.textWidth(s)
+    local chars = select(2, s:gsub("[^\128-\191]", ""))
+    local wide = select(2, s:gsub("[\224-\239]", ""))
+    return chars + wide
+end
+function TooltipUpgradeAdvisor.splitPieces(seg, seps)
+    local pieces, start, depth, i, n = {}, 1, 0, 1, #seg
+    while i <= n do
+        local c = seg:sub(i, i)
+        if c == "(" or c == "[" then depth = depth + 1
+        elseif (c == ")" or c == "]") and depth > 0 then depth = depth - 1
+        elseif depth == 0 then
+            for _, sep in ipairs(seps) do
+                if seg:sub(i, i + #sep - 1) == sep then
+                    i = i + #sep - 1
+                    pieces[#pieces + 1] = seg:sub(start, i)
+                    start = i + 1
+                    break
+                end
+            end
+        end
+        i = i + 1
+    end
+    if start <= n then pieces[#pieces + 1] = seg:sub(start) end
+    return pieces
+end
+-- contIndent: start of each continuation line (default four spaces)
+function TooltipUpgradeAdvisor.addShort(tt, text, r, g, b, seps, contIndent)
+    if type(text) ~= "string" or text == "" then return end
+    contIndent = contIndent or "    "
+    local width, indent = TooltipUpgradeAdvisor.textWidth, ""
+    for seg in (text .. "\n"):gmatch("([^\n]*)\n") do
+        local line = ""
+        for _, p in ipairs(TooltipUpgradeAdvisor.splitPieces(seg, seps or BREAK_SEPS)) do
+            if line ~= "" and width(line) + width(p) > LINE_WIDTH then
+                tt:AddLine(indent .. (line:gsub("%s+$", "")), r, g, b)
+                line, indent = "", contIndent
+            end
+            line = line .. p
+        end
+        line = line:gsub("%s+$", "")
+        if line ~= "" then
+            tt:AddLine(indent .. line, r, g, b)
+            indent = contIndent
+        end
+    end
+end
+local addShort = TooltipUpgradeAdvisor.addShort
+-- plain sentences (option and button help): break after ". " / ", ", no indent
+function ns:AddTooltipText(tt, text, r, g, b)
+    addShort(tt, text, r, g, b, { ". ", ", " }, "")
+end
+
 function ns:SuppressItemTooltip(v) ns.tipSuppressed = v end
 
 function TooltipUpgradeAdvisor.resolveItemIDFrom(tt, data)
@@ -122,11 +180,11 @@ function ns:AddEstimateLines(tt, entityID)
     if not TooltipUpgradeAdvisor.hasGear(entityID) then return false end
     local est = entityID and ns:EstimateSource(entityID)
     if not est then return false end
-    tt:AddLine(L["추정 획득처: "] .. est.long, 0.75, 0.75, 0.75, true)
+    addShort(tt, L["추정 획득처: "] .. est.long, 0.75, 0.75, 0.75)
     if est.wide then
-        tt:AddLine(string.format(L["(번호대 #%d 근처 아이템들이 모두 이 종류 · 구체적인 곳은 모름)"], est.near), 0.55, 0.55, 0.55, true)
+        tt:AddLine(string.format(L["(번호대 #%d 근처 아이템들이 모두 이 종류 · 구체적인 곳은 모름)"], est.near), 0.55, 0.55, 0.55)
     else
-        tt:AddLine(string.format(L["(번호가 가까운 아이템 #%d 기준%s)"], est.near, est.sure and L[", 앞뒤 모두 같은 곳"] or ""), 0.55, 0.55, 0.55, true)
+        tt:AddLine(string.format(L["(번호가 가까운 아이템 #%d 기준%s)"], est.near, est.sure and L[", 앞뒤 모두 같은 곳"] or ""), 0.55, 0.55, 0.55)
     end
     return true
 end
@@ -299,14 +357,14 @@ function TooltipUpgradeAdvisor.writeEntry(tt, entityID)
             shown = shown + 1
             local displayText = ns:FormatDetailedDropSource(stateFlag)
             if stateFlag.kind == "craft" then
-                tt:AddLine(displayText, 0.4, 0.8, 1, true)
+                tt:AddLine(displayText, 0.4, 0.8, 1)
                 if not craftShown then
                     craftShown = true
-                    for _, lnVal in ipairs(ns:CraftDetailLines(entityID) or {}) do tt:AddLine(lnVal, 0.7, 0.85, 1, true) end
+                    for _, lnVal in ipairs(ns:CraftDetailLines(entityID) or {}) do addShort(tt, lnVal, 0.7, 0.85, 1) end
                 end
-            elseif stateFlag.kind == "quest" then tt:AddLine(displayText, 1, 0.8, 0.3, true)
-            elseif stateFlag.kind == "vendor" then tt:AddLine(displayText, 0.6, 1, 0.6, true)
-            else tt:AddLine(displayText, 0.85, 0.85, 0.85, true) end
+            elseif stateFlag.kind == "quest" then addShort(tt, displayText, 1, 0.8, 0.3, { " · " })
+            elseif stateFlag.kind == "vendor" then addShort(tt, displayText, 0.6, 1, 0.6)
+            else tt:AddLine(displayText, 0.85, 0.85, 0.85) end
         end
     end
     if grandTotal > shown then tt:AddLine(string.format(L["... 외 %d곳"], grandTotal - shown), 0.6, 0.6, 0.6) end
@@ -386,7 +444,7 @@ local windowFrame = CreateFrame("Frame")
 windowFrame:RegisterEvent("PLAYER_LOGIN")
 windowFrame:SetScript("OnEvent", function()
     C_Timer.After(5, function()
-        if ns.db and ns.db.itemTooltip ~= false and not (InCombatLockdown and InCombatLockdown()) then
+        if ns.db and (ns.db.itemTooltip ~= false or ns.db.learn ~= false) and not (InCombatLockdown and InCombatLockdown()) then
             ns:EnsureIndex()
         end
     end)

@@ -145,8 +145,7 @@ end
 
 -- comparison lines of a recommendation row's item tooltip
 function MainGearAdvisorWindow.addRowLines(tip, row)
-    -- no word wrap here: a wrapped line is cut with "..." once other addons
-    -- resize the rows after the tooltip is laid out
+    -- no word wrap here: on this client a wrapped tooltip line is cut with "..."
     tip:AddLine(" ")
     if row.worn then
         tip:AddLine(L["지금 착용 중인 장비입니다."], 0.294, 0.784, 0.910)
@@ -328,7 +327,7 @@ function MainGearAdvisorWindow.assembleFrame()
         btn:HookScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
             GameTooltip:AddLine(title, 1, 1, 1)
-            if text then GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
+            if text then ns:AddTooltipText(GameTooltip, text, 0.8, 0.8, 0.8) end
             GameTooltip:Show()
         end)
         btn:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -627,9 +626,9 @@ function MainGearAdvisorWindow.assembleFrame()
         GameTooltip:AddLine(format(L["조건에 맞는 후보: %d개"], stateEntry.candidates), 0.8, 0.8, 0.8)
         GameTooltip:AddLine(format(L["게임에서 확인된 아이템: %d개"], stateEntry.ready), 0.6, 0.9, 0.6)
         if stateEntry.pending + (stateEntry.skipped or 0) > 0 then
-            GameTooltip:AddLine(format(L["확인되지 않은 아이템: %d개 (게임에 없는 아이템이면 계속 확인되지 않습니다)"], stateEntry.pending + (stateEntry.skipped or 0)), 1, 0.82, 0, true)
+            GameTooltip:AddLine(format(L["확인되지 않은 아이템: %d개 (게임에 없는 아이템이면 계속 확인되지 않습니다)"], stateEntry.pending + (stateEntry.skipped or 0)), 1, 0.82, 0)
         end
-        GameTooltip:AddLine(L["점수는 직업·역할별 스탯 가중치로 계산한 추정치입니다."], 0.7, 0.7, 0.7, true)
+        GameTooltip:AddLine(L["점수는 직업·역할별 스탯 가중치로 계산한 추정치입니다."], 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     statusBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)

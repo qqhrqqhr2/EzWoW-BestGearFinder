@@ -833,7 +833,7 @@ function ns:RebuildCatalogSearchWindow()
     windowFrame, listChild, countText, noteText, nameBox, minBox, maxBox, mineChk, searchBtn, noReqChk, statusBar = nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
     CatalogSearchWindow.constructMainFrame()
     nameBox:SetText(nameT or ""); minBox:SetText(minT or ""); maxBox:SetText(maxT or "")
-    if wasShown then windowFrame:Show() end
+    if wasShown then windowFrame:Show(); CatalogSearchWindow.startSearch() end
 end
 
 -- Settings "reset window position" / "/ezbg reset": also bring the search and settings windows back to the centre.

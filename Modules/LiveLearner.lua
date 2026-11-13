@@ -89,7 +89,6 @@ end
 
 function LiveLootLearner.isItemTrackedForLearning(entityID, link)
     return LiveLootLearner.hasGear(entityID) and not LiveLootLearner.isJunkItem(entityID, link)
-        and ns:HasKnownSource(entityID) ~= true
 end
 
 -- Chat lines printed during combat can taint the chat history: notices that come in
@@ -112,6 +111,46 @@ function LiveLootLearner.flushLearnedNotices()
     pendingNotices = {}
     for _, text in ipairs(list) do print(text) end
 end
+
+-- Only items with no known source are learned. Loot seen before the source index is built waits for it.
+local pendingLearn, pendingCount = {}, 0
+local indexBuildScheduled = false
+-- Index still idle (login timer fell in combat, rescan with the window closed): build it out of combat.
+function LiveLootLearner.scheduleIndexBuild()
+    if indexBuildScheduled or ns.indexState ~= "idle" or not ns.db or ns.db.learn == false or not C_Timer then return end
+    if InCombatLockdown and InCombatLockdown() then return end
+    indexBuildScheduled = true
+    C_Timer.After(1, function()
+        indexBuildScheduled = false
+        if ns.indexState == "idle" and not (InCombatLockdown and InCombatLockdown()) then ns:EnsureIndex() end
+    end)
+end
+
+function LiveLootLearner.learnOrQueue(entityID, kind, entry, link)
+    local known = ns:HasKnownSource(entityID)
+    if known == nil then
+        if ns.indexState ~= "empty" and pendingCount < 200 then
+            pendingCount = pendingCount + 1
+            pendingLearn[pendingCount] = { entityID, kind, entry, link }
+            LiveLootLearner.scheduleIndexBuild()
+        end
+        return
+    end
+    if known == false and ns:LearnSource(entityID, kind, entry) and kind ~= "vendors" then
+        LiveLootLearner.printLearnedSourceNotice(entityID, link)
+    end
+end
+
+function LiveLootLearner.flushPendingLearn()
+    if ns.indexState ~= "done" or pendingCount == 0 then return end
+    local list = pendingLearn
+    pendingLearn, pendingCount = {}, 0
+    if not ns.db or ns.db.learn == false then return end
+    for _, p in ipairs(list) do LiveLootLearner.learnOrQueue(p[1], p[2], p[3], p[4]) end
+end
+
+function LiveLootLearner.hasPendingLearn() return pendingCount > 0 end
+ns.FlushPendingLearn = LiveLootLearner.flushPendingLearn
 
 function LiveLootLearner.handleChatLootMessage()
     local nodeEntry = GetNumLootItems and GetNumLootItems() or 0
@@ -137,7 +176,7 @@ function LiveLootLearner.handleChatLootMessage()
                 local tnVal = LiveLootLearner.unwrapNonSecretValue(UnitName("target"))
                 if tnVal and UnitIsDead and UnitIsDead("target") then boss = tnVal end
             end
-            if ns:LearnSource(entityID, "drops", { inst = where, boss = boss or L["몹"], npc = npc }) then LiveLootLearner.printLearnedSourceNotice(entityID, link) end
+            LiveLootLearner.learnOrQueue(entityID, "drops", { inst = where, boss = boss or L["몹"], npc = npc }, link)
         end
     end
 end
@@ -151,7 +190,7 @@ function LiveLootLearner.onQuestComplete()
             local link = GetQuestItemLink and GetQuestItemLink(kind, index)
             local entityID = LiveLootLearner.resolveItemID(link)
             if entityID and LiveLootLearner.isItemTrackedForLearning(entityID, link) then
-                if ns:LearnSource(entityID, "quests", { qid = questIDVal, title = titleStr, lvl = 0 }) then LiveLootLearner.printLearnedSourceNotice(entityID, link) end
+                LiveLootLearner.learnOrQueue(entityID, "quests", { qid = questIDVal, title = titleStr, lvl = 0 }, link)
             end
         end
     end
@@ -169,7 +208,7 @@ function LiveLootLearner.onMerchant()
         local link = GetMerchantItemLink and GetMerchantItemLink(index)
         local entityID = LiveLootLearner.resolveItemID(link)
         if entityID and LiveLootLearner.isItemTrackedForLearning(entityID, link) then
-            ns:LearnSource(entityID, "vendors", { zone = zone, boss = displayName, npc = npc })
+            LiveLootLearner.learnOrQueue(entityID, "vendors", { zone = zone, boss = displayName, npc = npc }, link)
         end
     end
 end
@@ -181,6 +220,8 @@ end
 windowFrame:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_ENABLED" then
         pcall(LiveLootLearner.flushLearnedNotices)
+        -- index not started (login or rescan in combat): build it now so queued loot is checked
+        if LiveLootLearner.hasPendingLearn() then LiveLootLearner.scheduleIndexBuild() end
         return
     end
     if not ns.db or ns.db.learn == false then return end
