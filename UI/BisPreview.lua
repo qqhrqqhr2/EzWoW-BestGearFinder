@@ -151,9 +151,7 @@ local STAT_ROWS = {
 }
 
 local function statLabel(row)
-    local text = _G[row.key]
-    if type(text) == "string" and text ~= "" and not text:find("%%") then return text end
-    return L[row.label]
+    return ns.StatWeights.Label(row.key, row.label)
 end
 
 local function statsOf(entry)

@@ -38,6 +38,29 @@ local K = {
     NATURE = "ITEM_MOD_NATURE_DAMAGE_DONE_SHORT", SHADOW = "ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT", HOLY = "ITEM_MOD_HOLY_DAMAGE_DONE_SHORT",
 }
 StatWeights.KEYS = K
+-- shown name of a stat key: the game's own name when the addon shows the
+-- game's language, else the addon's text (keys of Core/Locales.lua)
+local LABELS = {
+    [K.STR] = "힘", [K.AGI] = "민첩성", [K.STA] = "체력", [K.INT] = "지능", [K.SPI] = "정신력",
+    [K.AP] = "전투력", [K.RAP] = "원거리 전투력", [K.FAP] = "야성 전투력", [K.SP] = "주문력", [K.SDMG] = "주문력",
+    [K.HEAL] = "치유량", [K.HEAL2] = "치유량", [K.MP5] = "5초당 마나 회복", [K.DPS] = "초당 공격력", [K.ARMOR] = "방어도",
+    [K.DEF] = "방어 숙련도", [K.DODGE] = "회피", [K.PARRY] = "무기 막기", [K.BLOCKV] = "방패 피해 방어량", [K.BLOCKR] = "방패 막기",
+    [K.HIT] = "적중도", [K.CRIT] = "치명타", [K.HASTE] = "가속", [K.EXP] = "숙련도",
+    [K.SHIT] = "적중도", [K.SCRIT] = "치명타", [K.SHASTE] = "가속", [K.PIERCE] = "주문 관통력",
+    [K.ARCANE] = "비전 주문력", [K.FIRE] = "화염 주문력", [K.FROST] = "냉기 주문력",
+    [K.NATURE] = "자연 주문력", [K.SHADOW] = "암흑 주문력", [K.HOLY] = "신성 주문력",
+}
+function StatWeights.Label(key, label)
+    local active = ns.GetActiveLocale and ns.GetActiveLocale()
+    local client = GetLocale and GetLocale()
+    if not active or active == client then
+        local text = _G[key]
+        if type(text) == "string" and text ~= "" and not text:find("%%") then return text end
+    end
+    label = label or LABELS[key]
+    if label and ns.L then return ns.L[label] end
+    return (tostring(key):gsub("^ITEM_MOD_", ""):gsub("_SHORT$", ""))
+end
 -- spec field (v.school) for each school key
 local SCHOOLS = { ARCANE = "arcane", FIRE = "fire", FROST = "frost", NATURE = "nature", SHADOW = "shadow", HOLY = "holy" }
 

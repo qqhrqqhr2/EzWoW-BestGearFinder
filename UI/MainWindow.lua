@@ -447,7 +447,7 @@ function MainGearAdvisorWindow.assembleFrame()
         if ns.HideBisCriteria then ns:HideBisCriteria() end
     end)
 
-    local cfgBtn = ns.CreateStyledButton(containerFrame, 76, 20, (SETTINGS or "설정"), false, function() ns:ToggleSettingsWindow() end)
+    local cfgBtn = ns.CreateStyledButton(containerFrame, 76, 20, L["설정"], false, function() ns:ToggleSettingsWindow() end)
     cfgBtn:SetPoint("TOPRIGHT", -18, -36)
     attachHoverTooltip(cfgBtn, "EzWoW - Best Gear Finder", L["출처, 조건, 아이템 등급을 선택합니다."] .. " (/ezbg config)")
 

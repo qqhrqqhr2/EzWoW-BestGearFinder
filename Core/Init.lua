@@ -981,7 +981,7 @@ function ns.FormatStatComparisonDelta(link, baseLink, weights, maxN)
     local outputList = {}
     for index = 1, math.min(maxN or 4, #itemList) do
         local e = itemList[index]
-        local formatLocalizedLabel = type(_G[e.k]) == "string" and _G[e.k] or e.k:gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "")
+        local formatLocalizedLabel = ns.StatWeights.Label(e.k)
         outputList[#outputList + 1] = format("%s %+d", formatLocalizedLabel, (e.d >= 0 and math.floor(e.d + 0.5) or math.ceil(e.d - 0.5)))
     end
     return table.concat(outputList, ", ")

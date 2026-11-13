@@ -37,9 +37,7 @@ local function fmt(x)
 end
 
 local function statLabel(entry)
-    local text = _G[entry.key]
-    if type(text) == "string" and text ~= "" and not text:find("%%") then return text end
-    return L[entry.label]
+    return ns.StatWeights.Label(entry.key, entry.label)
 end
 
 -- "stat worth · stat worth ..." lines (PER_LINE a line) and the worth unit
