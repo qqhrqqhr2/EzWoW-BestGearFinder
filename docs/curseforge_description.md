@@ -15,7 +15,7 @@ Finds the **best gear you can wear right now** for your class and level, slot by
 
 ![BiS try-on (in-game, Korean client)](https://raw.githubusercontent.com/qqhrqqhr2/EzWoW-BestGearFinder/master/docs/images/tryon_ko.png)
 
-*In-game screenshots (WoW Forever, Korean client). Character and player names and chat text are blurred.*
+*In-game screenshots with the addon set to English. The game client is Korean, so game text such as zone, item and spell names stays Korean. Character and player names and chat text are blurred.*
 
 ## Features
 
