@@ -383,6 +383,10 @@ function GearScoringEngine.sharedSources()
             if okInst then name = dungeonName(instanceMap) end
         end
         if not name then
+            local shipped = seed("instances")
+            name = shipped and dungeonName(shipped[npcID]) or nil
+        end
+        if not name then
             if not instByCreature then
                 instByCreature = {}
                 local db = ns.GearDB
@@ -408,7 +412,7 @@ function GearScoringEngine.sharedSources()
         return ok and type(n) == "string" and n ~= "" and n or nil
     end
 
-    local out = { drops = {}, vendors = {} }
+    local out = { drops = {}, vendors = {}, quests = {} }
     local seenPair = {}
     local function add(kind, itemID, npcID)
         if type(itemID) ~= "number" or type(npcID) ~= "number" then return end
@@ -460,6 +464,37 @@ function GearScoringEngine.sharedSources()
         if type(npcID) == "number" and type(items) == "table" then
             for _, itemID in ipairs(items) do add("vendors", itemID, npcID) end
         end
+    end
+    -- quest rewards EzWoW users saw (kind "W": this character's, received and shipped)
+    local function addReward(itemID, questID, choice)
+        if type(itemID) ~= "number" or type(questID) ~= "number" then return end
+        local okInfo, _, _, _, equipLoc = pcall(resolveItemInfoInstantC, itemID)
+        if not (okInfo and equipLoc and ns.EQUIP_LOCS and ns.EQUIP_LOCS[equipLoc]) then return end
+        local key = "q" .. itemID .. ":" .. questID
+        if seenPair[key] then return end
+        seenPair[key] = true
+        local list = out.quests[itemID]
+        if not list then
+            list = {}
+            out.quests[itemID] = list
+        end
+        list[#list + 1] = { qid = questID, choice = choice }
+    end
+    local function addRewards(questID, fixed, choice)
+        for _, itemID in ipairs(type(fixed) == "table" and fixed or {}) do addReward(itemID, questID, false) end
+        for _, itemID in ipairs(type(choice) == "table" and choice or {}) do addReward(itemID, questID, true) end
+    end
+    if type(share.Store) == "function" and type(share.GetQuestRewards) == "function" then
+        local okRows, rows = pcall(share.Store, "W")
+        for questID in pairs(okRows and type(rows) == "table" and rows or {}) do
+            if type(questID) == "number" then
+                local okRw, rw = pcall(share.GetQuestRewards, questID)
+                if okRw and type(rw) == "table" then addRewards(questID, rw.r, rw.c) end
+            end
+        end
+    end
+    for questID, row in pairs(seed("rewards") or {}) do
+        if type(questID) == "number" and type(row) == "table" then addRewards(questID, row.r, row.c) end
     end
     return out
 end
@@ -1519,7 +1554,8 @@ function ns:QuestTitle(stateFlag)
             titleRequested[stateFlag.qid] = true
             pcall(C_QuestLog.RequestLoadQuestByID, stateFlag.qid)
         end
-        resolvedValue = stateFlag.inst
+        -- (a shared quest reward has no title of its own: the number until the game sends it)
+        resolvedValue = stateFlag.inst or ("#" .. tostring(stateFlag.qid or "?"))
     end
     return resolvedValue
 end
