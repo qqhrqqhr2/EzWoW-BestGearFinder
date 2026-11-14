@@ -278,7 +278,7 @@ function GearScoringEngine.inspectNewItems()
             local rec = GearScoringEngine.constructRecord(id)
             if rec then
                 rec.new = true
-                GearScoringEngine.addSource(rec, L["Forever 신규"], L["획득처 불명"], nil, "unknown")
+                GearScoringEngine.addSource(rec, L["Forever 신규"], L["획득처 불명"], nil, "unknown", nil, { item = id })
                 ns.index[id] = rec
                 stateEntry.items = stateEntry.items + 1
                 stateEntry.new = stateEntry.new + 1
@@ -404,7 +404,7 @@ function GearScoringEngine.sharedSources()
     end
     local function nameOf(npcID)
         if type(share.SourceName) ~= "function" then return nil end
-        local ok, n = pcall(share.SourceName, "n" .. npcID)
+        local ok, n = pcall(share.SourceName, "n" .. npcID, ns.GetActiveLocale and ns.GetActiveLocale() or nil)
         return ok and type(n) == "string" and n ~= "" and n or nil
     end
 
@@ -1638,6 +1638,41 @@ function GearScoringEngine.placeName(inst)
     if type(name) ~= "string" or name == "" then return nil end
     return name
 end
+-- The game's own kind of source for an item, from the appearance collection
+-- (sourceType 1 boss drop, 2 quest, 3 vendor, 4 world drop, 5 achievement,
+-- 6 profession, 7 trading post): its text in this addon's language and the
+-- matching source kind, or nil (gear without an appearance has none). New
+-- Forever items have no other source data.
+do
+    local TEXT = { "우두머리 처치", "퀘스트 보상", "상인 판매", "월드 드랍", "업적", "전문 기술", "교역소" }
+    local KIND = { [1] = "drop", [2] = "quest", [3] = "vendor", [4] = "drop", [6] = "craft" }
+    local cache = {}
+    local function plain(v) return type(v) == "number" and not (issecretvalue and issecretvalue(v)) end
+    function GearScoringEngine.gameSource(itemID)
+        if type(itemID) ~= "number" then return nil end
+        local t = cache[itemID]
+        if t == nil then
+            local tc = C_TransmogCollection
+            if not (tc and tc.GetItemInfo and tc.GetSourceInfo) then return nil end
+            local ok, _, sourceID = pcall(tc.GetItemInfo, itemID)
+            if not (ok and plain(sourceID)) then
+                -- no appearance; asked again while the item's data is not loaded yet
+                local loaded = C_Item and C_Item.IsItemDataCachedByID and C_Item.IsItemDataCachedByID(itemID)
+                if loaded then cache[itemID] = false end
+                return nil
+            end
+            local ok2, info = pcall(tc.GetSourceInfo, sourceID)
+            t = ok2 and type(info) == "table" and info.sourceType
+            if not plain(t) or t <= 0 then t = false end
+            cache[itemID] = t
+        end
+        if not t then return nil end
+        local text = TEXT[t] and L[TEXT[t]] or _G["TRANSMOG_SOURCE_" .. t]
+        if type(text) ~= "string" or text == "" then return nil end
+        return text, KIND[t]
+    end
+end
+
 -- where a drop comes from in a few words: the zone, else the creature
 function GearScoringEngine.dropPlace(stateFlag)
     local place = GearScoringEngine.placeName(stateFlag.inst)
@@ -1657,6 +1692,8 @@ function ns:FormatCompactDropSource(rec, id)
     if stateFlag.kind == "unknown" then
         local est = id and self:EstimateSource(id)
         if est then return L["추정: "] .. est.short end
+        local gameText = GearScoringEngine.gameSource(id or stateFlag.item)
+        if gameText then return string.format(L["%s (신규)"], gameText) end
         return L["출처 불명 (신규)"]
     end
     if stateFlag.kind == "craft" then return L["제작:"] .. GearScoringEngine.locInst(stateFlag.inst) end
@@ -1672,7 +1709,11 @@ function ns:FormatDetailedDropSource(stateFlag)
     return displayText
 end
 function ns:FormatPrimaryDropSource(stateFlag)
-    if stateFlag.kind == "unknown" then return L["획득처 불명 (Forever 신규 아이템)"] end
+    if stateFlag.kind == "unknown" then
+        local gameText = GearScoringEngine.gameSource(stateFlag.item)
+        if gameText then return string.format(L["획득처: %s (Forever 신규 아이템)"], gameText) end
+        return L["획득처 불명 (Forever 신규 아이템)"]
+    end
     if stateFlag.kind == "craft" then
         local resolvedValue = L["제작: "] .. GearScoringEngine.locInst(stateFlag.inst)
         if stateFlag.boss == "도안 필요" then resolvedValue = resolvedValue .. L[" [도안 필요]"] end
@@ -1709,7 +1750,17 @@ function GearScoringEngine.resolveKnownSource(rec)
     end
     return best
 end
+-- A guess from nearby item numbers, left out when the game names another kind
+-- of source for the item (GearScoringEngine.gameSource).
 function ns:EstimateSource(id)
+    local est = self:EstimateSourceByNumber(id)
+    if not est then return nil end
+    local gameText, gameKind = GearScoringEngine.gameSource(id)
+    if gameText and gameKind ~= est.kind then return nil end
+    return est
+end
+
+function ns:EstimateSourceByNumber(id)
     if type(id) ~= "number" or self.indexState ~= "done" then return nil end
     local known = self.knownIDs
     if not known then
@@ -1753,7 +1804,7 @@ function ns:EstimateSource(id)
         elseif kind == "craft" then extractSafeTooltipText = L["제작"]
         elseif niVal == 1 and GearScoringEngine.placeName(inst) then extractSafeTooltipText = GearScoringEngine.placeName(inst) .. L[" 드랍"]
         else return nil end
-        return { short = extractSafeTooltipText, long = extractSafeTooltipText, near = nearest, dist = ndVal, sure = false, wide = true }
+        return { short = extractSafeTooltipText, long = extractSafeTooltipText, near = nearest, dist = ndVal, sure = false, wide = true, kind = kind }
     end
     local stateFlag = GearScoringEngine.resolveKnownSource(self.index[best])
     local short, long
@@ -1784,7 +1835,7 @@ function ns:EstimateSource(id)
             break
         end
     end
-    return { short = short, long = long, near = best, dist = bestD, sure = sure }
+    return { short = short, long = long, near = best, dist = bestD, sure = sure, kind = stateFlag.kind }
 end
 
 function GearScoringEngine.resolveItemNameOf(id)

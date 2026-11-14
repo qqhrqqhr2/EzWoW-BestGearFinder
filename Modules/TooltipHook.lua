@@ -240,6 +240,16 @@ function TooltipUpgradeAdvisor.hasRealSource(recordItem)
     return false
 end
 
+-- New Forever gear (no source data): this addon's tooltip line names the
+-- game's own kind of source (GearScoringEngine.gameSource), in the list's row
+-- or, for gear left out of the list, when no guess from item numbers is shown.
+function TooltipUpgradeAdvisor.showsGameSource(entityID, recordItem)
+    local engine = ns.GearScoringEngine
+    if not (engine and engine.gameSource and engine.gameSource(entityID)) then return false end
+    if recordItem then return true end
+    return entityID >= 200000 and TooltipUpgradeAdvisor.hasGear(entityID) and not ns:EstimateSource(entityID)
+end
+
 -- EzWoW-Tooltip shows a source for the item: its source data, or shops and
 -- drops EzWoW users saw in the game (shared records). Its block has them, so
 -- this addon's lines leave them out.
@@ -269,7 +279,10 @@ function ns:CoversItemSource(tt, entityID)
     if ns.indexState ~= "done" or not ns.index then return false, false end
     if TooltipUpgradeAdvisor.tooltipAddonHasSource(entityID) then return false, false end
     local recordItem = ns.index[entityID]
-    if not TooltipUpgradeAdvisor.hasRealSource(recordItem) then return false, false end
+    if not TooltipUpgradeAdvisor.hasRealSource(recordItem) then
+        -- new Forever gear: this addon's line names the game's kind of source
+        return TooltipUpgradeAdvisor.showsGameSource(entityID, recordItem), false
+    end
     local craft = false
     for _, stateFlag in ipairs(recordItem.src) do
         if stateFlag.kind == "craft" then craft = ns.CraftData and ns.CraftData.info and ns.CraftData.info[entityID] ~= nil; break end
@@ -320,7 +333,15 @@ function TooltipUpgradeAdvisor.writeEntry(tt, entityID)
 
         if etHasSource or entityID < 200000 or not TooltipUpgradeAdvisor.hasGear(entityID) then return end
         local est = ns:EstimateSource(entityID)
-        if not est then return end
+        if not est then
+            -- the game's own kind of source (new Forever gear has no other data)
+            local engine = ns.GearScoringEngine
+            local gameText = engine and engine.gameSource and engine.gameSource(entityID)
+            if not gameText then return end
+            tt:AddLine(" ")
+            addShort(tt, string.format(L["획득처: %s (Forever 신규 아이템)"], gameText), 0.75, 0.75, 0.75)
+            return
+        end
         tt:AddLine(" ")
         ns:AddEstimateLines(tt, entityID)
         return
