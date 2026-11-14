@@ -1,11 +1,9 @@
-# v2.0.19
+# v2.0.20
 
 ### 한국어
-- 장비 출처의 상점·몬스터 이름이 이 애드온의 언어 설정을 따르도록 고쳤습니다.
-- 퀘스트 보상의 빠져 있던 퀘스트 이름을 채웠습니다.
-- 출처 데이터가 없는 Forever 신규 장비에 게임이 알려 주는 출처 종류(전문 기술·퀘스트 보상·상인 판매·우두머리 처치 등)를 표시합니다.
+- EzWoW 사용자들이 확인한 퀘스트 보상으로 장비의 퀘스트 출처를 표시합니다. 출처를 몰랐던 Forever 신규 장비도 포함됩니다.
+- 공유 기록으로 알게 된 던전 몬스터 정보를 기본 데이터로 넣어, 드롭 출처의 던전 이름이 처음부터 나옵니다.
 
 ### English
-- Shop and monster names in gear sources now follow this addon's language setting.
-- Filled in missing quest names for quest rewards.
-- New Forever gear without source data now shows the kind of source the game reports (profession, quest reward, vendor, boss drop and so on).
+- Gear now shows quest sources from quest rewards EzWoW users saw, including new Forever gear whose source was unknown.
+- Dungeon monster data from shared records is now built in, so drop sources show their dungeon from the start.
